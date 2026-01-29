@@ -1,0 +1,224 @@
+// lib/mockData.ts
+
+// Data-structures and mock-data for orders and order lines (scrolling, filtering, pagination can be added later)
+
+export interface OrderLine {
+    lineNumber: string | number;            // "1", 1, etc.
+    itemNumber: string;                     // "HS-150" or "VH380070"
+    itemName?: string;                      // name of choice
+    quantity: number;                       // ordered quantity
+    unit?: string;                          // "pcs", "stk", etc.
+    receivedQuantity?: number;              // quantity received so far
+    netPrice?: number;                      // price per unit
+    lineStatus?: string | number;           // "1", "open", etc.
+}
+
+export interface Order {
+    orderId?: string;                       // "700001" (internal ID)
+    orderNumber: string;                    // "400001" or "00000"
+    date?: string;                          // "2023-08-15" or "requestDate"
+    status: string;                         // "open", "partial", "closed", etc.
+    customerNumber?: string;                // from /order/{customerNumber}
+    warehouseId?: string;                   // "10"
+    warehouseName?: string;                 // "Main Warehouse" - can be used as default
+    supplierOrCustomer?: string;            // placeholder for supplier/customer name
+    sum?: number;                           // total sum
+    orderLines: OrderLine[];                // array of order lines
+    totalLines?: number;                    // total number of lines
+}
+
+// Mock-data from swagger examples
+export const mockOrders: Order[] = [
+  {
+    orderId: "700001",
+    orderNumber: "400001",
+    date: "2026-01-15",
+    status: "open",
+    customerNumber: "169999",
+    warehouseId: "10",
+    warehouseName: "Main Warehouse Oslo",
+    supplierOrCustomer: "Verktøy Norge AS",
+    sum: 15000,
+    orderLines: [
+      { lineNumber: "1", itemNumber: "HS-150", itemName: "Hydraulic Hose 1/2\"", quantity: 50, unit: "m", receivedQuantity: 0, netPrice: 330.17, lineStatus: "1" },
+      { lineNumber: "2", itemNumber: "VH380070", itemName: "Valve Hydraulic", quantity: 10, unit: "pcs", receivedQuantity: 0, netPrice: 1200.50, lineStatus: "1" },
+    ],
+    totalLines: 2,
+  },
+  {
+    orderNumber: "400002",
+    date: "2026-01-20",
+    status: "partial",
+    warehouseName: "Lager Bergen",
+    supplierOrCustomer: "Rør & Ventil AS",
+    sum: 28000,
+    orderLines: [
+      { lineNumber: "1", itemNumber: "ROR-456", itemName: "Rør 50mm", quantity: 200, unit: "stk", receivedQuantity: 120, netPrice: 45.0, lineStatus: "partial" },
+      { lineNumber: "2", itemNumber: "VENT-789", itemName: "Ventil DN50", quantity: 15, unit: "stk", receivedQuantity: 15, netPrice: 850.0, lineStatus: "closed" },
+      { lineNumber: "3", itemNumber: "FLENS-101", itemName: "Flens 150mm", quantity: 8, unit: "stk", receivedQuantity: 0, netPrice: 320.0, lineStatus: "1" },
+    ],
+    totalLines: 3,
+  },
+  {
+    orderNumber: "400003",
+    date: "2026-01-25",
+    status: "closed",
+    warehouseName: "Lager Trondheim",
+    supplierOrCustomer: "El-produkter ASA",
+    sum: 12500,
+    orderLines: [
+      { lineNumber: "1", itemNumber: "KBL-789", itemName: "Kabel 3x1.5 mm²", quantity: 500, unit: "m", receivedQuantity: 500, netPrice: 18.50, lineStatus: "closed" },
+    ],
+    totalLines: 1,
+  },
+  {
+    orderNumber: "400004",
+    date: "2026-02-01",
+    status: "open",
+    warehouseName: "Main Warehouse Oslo",
+    supplierOrCustomer: "Industrikomponenter AS",
+    sum: 42000,
+    orderLines: [
+      { lineNumber: "1", itemNumber: "PUMP-234", itemName: "Sentrifugalpumpe", quantity: 5, unit: "stk", receivedQuantity: 0, netPrice: 6800.0, lineStatus: "1" },
+      { lineNumber: "2", itemNumber: "MTR-567", itemName: "Motor 11kW", quantity: 3, unit: "stk", receivedQuantity: 0, netPrice: 4500.0, lineStatus: "1" },
+    ],
+    totalLines: 4,
+  },
+  {
+    orderNumber: "400005",
+    date: "2026-02-03",
+    status: "partial",
+    warehouseName: "Lager Stavanger",
+    supplierOrCustomer: "Verktøy & Maskin AS",
+    sum: 9500,
+    orderLines: [
+      { lineNumber: "1", itemNumber: "BOR-890", itemName: "Borsett HSS", quantity: 20, unit: "sett", receivedQuantity: 12, netPrice: 420.0, lineStatus: "partial" },
+    ],
+    totalLines: 1,
+  },
+  {
+    orderNumber: "400006",
+    date: "2026-02-05",
+    status: "open",
+    supplierOrCustomer: "Rørimport AS",
+    warehouseName: "Main Warehouse Oslo",
+    sum: 18500,
+    orderLines: [
+      { lineNumber: "1", itemNumber: "ROR-112", itemName: "Rustfritt rør 2\"", quantity: 120, unit: "m", receivedQuantity: 0, lineStatus: "1" },
+      { lineNumber: "2", itemNumber: "KPL-334", itemName: "Kobling 2\"", quantity: 50, unit: "stk", receivedQuantity: 0, lineStatus: "1" },
+    ],
+    totalLines: 2,
+  },
+  {
+    orderNumber: "400007",
+    date: "2026-02-07",
+    status: "closed",
+    supplierOrCustomer: "El & Lys AS",
+    warehouseName: "Lager Bergen",
+    sum: 6700,
+    orderLines: [
+      { lineNumber: "1", itemNumber: "LED-445", itemName: "LED-panel 60W", quantity: 40, unit: "stk", receivedQuantity: 40, lineStatus: "closed" },
+    ],
+    totalLines: 1,
+  },
+  {
+    orderNumber: "400008",
+    date: "2026-02-10",
+    status: "partial",
+    supplierOrCustomer: "Pumpe & Ventil AS",
+    warehouseName: "Lager Trondheim",
+    sum: 32000,
+    orderLines: [
+      { lineNumber: "1", itemNumber: "PMP-556", itemName: "Dykkpumpe 5kW", quantity: 4, unit: "stk", receivedQuantity: 2, netPrice: 7800.0, lineStatus: "partial" },
+      { lineNumber: "2", itemNumber: "SLG-778", itemName: "Slange 4\"", quantity: 100, unit: "m", receivedQuantity: 0, lineStatus: "1" },
+    ],
+    totalLines: 3,
+  },
+  {
+    orderNumber: "400009",
+    date: "2026-02-12",
+    status: "open",
+    supplierOrCustomer: "Verktøyimport AS",
+    warehouseName: "Main Warehouse Oslo",
+    sum: 11000,
+    orderLines: [
+      { lineNumber: "1", itemNumber: "SAG-990", itemName: "Båndsagblad", quantity: 30, unit: "stk", receivedQuantity: 0, lineStatus: "1" },
+    ],
+    totalLines: 1,
+  },
+  {
+    orderNumber: "400010",
+    date: "2026-02-14",
+    status: "partial",
+    supplierOrCustomer: "Rør & Fittings AS",
+    warehouseName: "Lager Stavanger",
+    sum: 21000,
+    orderLines: [
+      { lineNumber: "1", itemNumber: "FIT-223", itemName: "Reduksjon 100/50mm", quantity: 80, unit: "stk", receivedQuantity: 45, lineStatus: "partial" },
+      { lineNumber: "2", itemNumber: "VENT-667", itemName: "Kuleventil DN80", quantity: 12, unit: "stk", receivedQuantity: 12, lineStatus: "closed" },
+    ],
+    totalLines: 2,
+  },
+  {
+    orderNumber: "400011",
+    date: "2026-02-16",
+    status: "open",
+    supplierOrCustomer: "Elkomponenter ASA",
+    warehouseName: "Main Warehouse Oslo",
+    sum: 14500,
+    orderLines: [
+      { lineNumber: "1", itemNumber: "BRY-112", itemName: "Bryter 63A", quantity: 25, unit: "stk", receivedQuantity: 0, lineStatus: "1" },
+      { lineNumber: "2", itemNumber: "REL-334", itemName: "Relé 24V", quantity: 100, unit: "stk", receivedQuantity: 0, lineStatus: "1" },
+    ],
+    totalLines: 3,
+  },
+  {
+    orderNumber: "400012",
+    date: "2026-02-18",
+    status: "closed",
+    supplierOrCustomer: "Industri & Verktøy AS",
+    warehouseName: "Lager Bergen",
+    sum: 8900,
+    orderLines: [
+      { lineNumber: "1", itemNumber: "DRIL-556", itemName: "Batteridrill 18V", quantity: 8, unit: "stk", receivedQuantity: 8, lineStatus: "closed" },
+    ],
+    totalLines: 1,
+  },
+  {
+    orderNumber: "400013",
+    date: "2026-02-20",
+    status: "partial",
+    supplierOrCustomer: "Ventil & Rør AS",
+    warehouseName: "Lager Trondheim",
+    sum: 38000,
+    orderLines: [
+      { lineNumber: "1", itemNumber: "GAT-778", itemName: "Portventil DN100", quantity: 6, unit: "stk", receivedQuantity: 3, netPrice: 6200.0, lineStatus: "partial" },
+    ],
+    totalLines: 2,
+  },
+  {
+    orderNumber: "400014",
+    date: "2026-02-22",
+    status: "open",
+    supplierOrCustomer: "Maskinvare AS",
+    warehouseName: "Main Warehouse Oslo",
+    sum: 16500,
+    orderLines: [
+      { lineNumber: "1", itemNumber: "KJE-990", itemName: "Kjedestropp 8mm", quantity: 50, unit: "m", receivedQuantity: 0, lineStatus: "1" },
+    ],
+    totalLines: 1,
+  },
+  {
+    orderNumber: "400015",
+    date: "2026-02-24",
+    status: "partial",
+    supplierOrCustomer: "Elektrisk & Lys AS",
+    warehouseName: "Lager Stavanger",
+    sum: 22000,
+    orderLines: [
+      { lineNumber: "1", itemNumber: "ARM-112", itemName: "Armatur IP65", quantity: 35, unit: "stk", receivedQuantity: 20, lineStatus: "partial" },
+      { lineNumber: "2", itemNumber: "LED-334", itemName: "LED-spot 30W", quantity: 60, unit: "stk", receivedQuantity: 0, lineStatus: "1" },
+    ],
+    totalLines: 2,
+  },
+];
