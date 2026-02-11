@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 type Props = {
   formData: any;
   setFormData: (f: any) => void;
@@ -41,6 +43,7 @@ export default function ArchiveForm({ formData, setFormData, onSubmit }: Props) 
         <div className="flex gap-3">
           <button type="submit" className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition">Arkiver</button>
           <button type="button" onClick={() => setFormData({ referenceNumber: "", sender: "", packagesCount: "", totalWeight: "", notes: "" })} className="px-6 py-2 bg-gray-400 hover:bg-gray-500 text-white font-medium rounded-lg transition">Nullstill</button>
+          <Link href="/track-parcel" className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition">Tilbake</Link>
         </div>
       </form>
     </div>

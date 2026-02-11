@@ -32,7 +32,7 @@ export default function TrackParcelPage() {
     <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-800">Spor Pakke</h1>
+          <h1 className="text-3xl font-bold text-gray-800">Sporingsverktøy</h1>
           <Link href="/dashboard" className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition">Tilbake</Link>
         </div>
 
@@ -44,6 +44,7 @@ export default function TrackParcelPage() {
           filteredCount={filteredParcels.length}
         />
 
+        <div className="mt-6">
         {filteredParcels.length === 0 ? (
           <div className="bg-white rounded-xl shadow-lg p-12 text-center">
             <p className="text-gray-500 text-lg">Ingen pakker funnet</p>
@@ -58,6 +59,7 @@ export default function TrackParcelPage() {
             })}
           </div>
         )}
+        </div>
 
         <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
           <div className="flex items-start gap-4">
