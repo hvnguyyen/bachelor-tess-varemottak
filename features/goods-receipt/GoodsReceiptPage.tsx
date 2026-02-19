@@ -24,7 +24,7 @@ export default function GoodsReceiptPage() {
     const trimmedBarcode = barcode.trim();
     const now = Date.now();
 
-      if (items.some((item) => item.barcode === trimmedBarcode)) {
+    if (items.some((item) => item.barcode === trimmedBarcode)) {
       setError(`Strekkode ${trimmedBarcode} er allerede registrert`);
       setTimeout(() => setError(""), 3000);
       return;
@@ -86,18 +86,34 @@ export default function GoodsReceiptPage() {
     }
   };
 
-  const submitReceipt = () => {
+  const submitReceipt = async () => {
     if (items.length === 0) {
       setError("Du må registrere minst en vare");
       return;
     }
 
-    setSuccess(`Varemottak registrert med ${items.length} vare(r)`);
+    setError("");
+    setSuccess("");
 
-    setTimeout(() => {
+    try {
+      const response = await fetch("/api/receipts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ items }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Ugyldig svar fra API");
+      }
+
+      setSuccess(`Varemottak registrert med ${items.length} vare(r)`);
       setItems([]);
-      setSuccess("");
-    }, 2000);
+      setTimeout(() => setSuccess(""), 2000);
+    } catch {
+      setError("Kunne ikke registrere mottak");
+    }
   };
 
   return (
@@ -109,14 +125,6 @@ export default function GoodsReceiptPage() {
           <Link href="/dashboard" className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition">Tilbake</Link>
         </div>
 
-        {/* Error and Success Messages */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">{error}</div>
-        )}
-        {success && (
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">{success}</div>
-        )}
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Scanner Section */}
           <div className="lg:col-span-2">
@@ -125,11 +133,8 @@ export default function GoodsReceiptPage() {
               setScannerActive={setScannerActive}
               showManualEntry={showManualEntry}
               setShowManualEntry={setShowManualEntry}
-              error={error}
-              success={success}
               onBarcodeScanned={handleBarcodeScanned}
               setError={setError}
-              setSuccess={setSuccess}
             />
 
             <ManualEntry manualCode={manualCode} setManualCode={setManualCode} onSubmit={handleManualEntry} showManualEntry={showManualEntry} />
@@ -138,6 +143,11 @@ export default function GoodsReceiptPage() {
           {/* Items List Section */}
           <div className="lg:col-span-1">
             <ItemsList items={items} removeItem={removeItem} clearAll={clearAll} submitReceipt={submitReceipt} />
+            {error ? (
+              <div className="mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">{error}</div>
+            ) : success ? (
+              <div className="mt-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">{success}</div>
+            ) : null}
           </div>
         </div>
       </div>

@@ -8,19 +8,21 @@ type Props = {
   setScannerActive: (b: boolean) => void;
   showManualEntry: boolean;
   setShowManualEntry: (b: boolean) => void;
-  error: string;
-  success: string;
   onBarcodeScanned: (code: string) => void;
   setError: (s: string) => void;
-  setSuccess: (s: string) => void;
 };
 
-export default function Scanner({ scannerActive, setScannerActive, showManualEntry, setShowManualEntry, error, success, onBarcodeScanned, setError, setSuccess }: Props) {
+export default function Scanner({ scannerActive, setScannerActive, showManualEntry, setShowManualEntry, onBarcodeScanned, setError }: Props) {
   const html5QrcodeRef = useRef<Html5Qrcode | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const onBarcodeScannedRef = useRef(onBarcodeScanned);
   const [isScannerRunning, setIsScannerRunning] = useState(false);
   const lastScannedRef = useRef<{ code: string; time: number } | null>(null);
   const stoppingRef = useRef(false);
+
+  useEffect(() => {
+    onBarcodeScannedRef.current = onBarcodeScanned;
+  }, [onBarcodeScanned]);
 
   const computeQrboxSize = () => {
     const container = containerRef.current || document.getElementById("qr-scanner");
@@ -59,7 +61,7 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
         const now = Date.now();
         if (lastScannedRef.current && lastScannedRef.current.code === trimmed && now - lastScannedRef.current.time < 1000) return;
         lastScannedRef.current = { code: trimmed, time: now };
-        onBarcodeScanned(trimmed);
+        onBarcodeScannedRef.current(trimmed);
       };
 
       const qrbox = computeQrboxSize();
@@ -368,13 +370,6 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
         <button onClick={handlePowerClick} className="w-full px-4 py-3 bg-gray-600 text-white rounded-lg">{scannerActive ? 'Skjul kamera' : 'Skru på kamera'}</button>
         <button onClick={() => setShowManualEntry(!showManualEntry)} className={`w-full px-4 py-3 ${showManualEntry ? 'bg-violet-700' : 'bg-violet-600'} hover:bg-violet-700 text-white rounded-lg`}>{showManualEntry ? 'Skjul registrering' : 'Manuell registrering'}</button>
       </div>
-
-      {(error || success) && (
-        <div className="mt-4">
-          {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded">{error}</div>}
-          {success && <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded">{success}</div>}
-        </div>
-      )}
 
       <style jsx>{`
         #qr-scanner video, #qr-scanner canvas {

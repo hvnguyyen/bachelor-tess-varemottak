@@ -19,7 +19,10 @@ TESS AS has over 140 locations in Norway and a central warehouse. Today, manual 
 - **Styling**: Tailwind CSS
 - **Authentication**: Microsoft Entra ID (Azure AD)
 - **API**: Proxy routes in Next.js → TESS backend API
-- **Target Platform**: Tablet (landscape mode), responsive design
+- **Target Platform**: Tablet (landscape/portrait mode), responsive design
+
+## Swagger UI and Proxy API
+https://30011-proxyapi-cuafeua6bha7ckby.norwayeast-01.azurewebsites.net/swagger/#/
 
 ## Primary Functions (POC level)
 1. [ ] Login with Entra ID
