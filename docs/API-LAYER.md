@@ -20,7 +20,7 @@ Kontrakten i BFF-laget eies av prosjektet og kan være smalere og mer stabil enn
 ### 3. Eksternt API og miljø
 
 - Primær base-URL: `https://api.tessix.no/`
-- Per nå finnes ikke et eget testmiljø/sandbox.
+- Per nå finnes ikke et eget testmiljø/sandbox. # fikk beskjed om å fjerne denne. Han ser dette er laget av Chat
 - Prosjektet må derfor kunne kjøre med lokal mock-data ved behov.
 
 ### 4. Kjerneflyt for auth/session (fase 1)
