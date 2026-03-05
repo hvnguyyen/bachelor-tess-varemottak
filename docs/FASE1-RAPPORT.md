@@ -13,9 +13,9 @@ Dette dokumentet oppsummerer arbeid, funn, feilbilder, avklaringer og midlertidi
 
 ## Hva som er gjort
 - Miljøvariabler satt opp i `.env.local` for base URL og midlertidig token.
-- Felles klient laget (`tessClient`) for API-kall mot `https://api.tessix.no`.
-- Intern route laget for `GET /api/me` som proxier mot `GET /user`.
-- Intern route laget for `POST /api/auth/login` (WIP, flyt testes/justeres).
+- Felles klient lagd (`tessClient`) for API-kall mot `https://api.tessix.no`.
+- Intern route lagd for `GET /api/me` som proxier mot `GET /user`.
+- Intern route lagd for `POST /api/auth/login` (WIP, flyt testes/justeres).
 - Postman tatt i bruk for isolert testing av endepunkter.
 
 ## Feilbilder vi traff, og hva de betydde

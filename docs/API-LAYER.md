@@ -57,6 +57,19 @@ Siden testmiljø mangler, skal API-laget støtte mock-modus:
 - Simulering av vanlige feil (f.eks. `401`, timeout, tom respons).
 - Lik responsstruktur i mock og live-modus, slik at UI kan utvikles uten å bytte kodeflyt.
 
+#### Mock-mode toggle (implementert)
+
+Ved manglende/utløpt TESS-token kan appen kjøres i mock-mode med:
+
+- `USE_MOCK_API=true` (server-side API-ruter)
+- `NEXT_PUBLIC_USE_MOCK_API=true` (klientflyt i login-siden)
+
+Effekt i dagens løsning:
+
+- `POST /api/auth/login` setter lokal mock-cookie (`accessToken`) når mock-mode er aktiv.
+- `GET /api/me` validerer cookie og returnerer mock-bruker i mock-mode.
+- Live-kall til TESS brukes kun når mock-mode er av.
+
 ### 7. Feilhåndtering og logging
 
 - Standardiserte feilresponser fra BFF til frontend.
