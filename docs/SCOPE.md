@@ -1,5 +1,16 @@
 ## Scope og leveranseplan (POC)
 
+Vår løsning: 
+- Ren webapp for nettbrett med responsivt UI
+- Stack
+    * Next.js
+    * TypeScript
+    * Tailwind CSS
+    * Axios
+- Integrasjoner
+    * TESS Proxy API
+    * Microsoft Entra ID
+
 ### 1. Formål
 Prosjektet leveres som en Proof of Concept (POC) for en webbasert løsning for digitalt varemottak hos TESS.
 

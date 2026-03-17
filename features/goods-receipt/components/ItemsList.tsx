@@ -1,15 +1,16 @@
 "use client";
 
-type ScannedItem = { barcode: string; timestamp: number };
+import { ReceiptItem } from "@/lib/receipts";
 
 type Props = {
-  items: ScannedItem[];
+  items: ReceiptItem[];
   removeItem: (index: number) => void;
   clearAll: () => void;
   submitReceipt: () => void;
+  isSubmitting: boolean;
 };
 
-export default function ItemsList({ items, removeItem, clearAll, submitReceipt }: Props) {
+export default function ItemsList({ items, removeItem, clearAll, submitReceipt, isSubmitting }: Props) {
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
       <h2 className="text-xl font-semibold text-gray-800 mb-4">Registrerte varer ({items.length})</h2>
@@ -31,8 +32,10 @@ export default function ItemsList({ items, removeItem, clearAll, submitReceipt }
       )}
 
       <div className="space-y-2 pt-4 border-t">
-        <button onClick={submitReceipt} disabled={items.length === 0} className="w-full px-4 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-semibold rounded-lg transition">Registrer mottak</button>
-        <button onClick={clearAll} disabled={items.length === 0} className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-medium rounded-lg transition">Slett alt</button>
+        <button onClick={submitReceipt} disabled={items.length === 0 || isSubmitting} className="w-full px-4 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-semibold rounded-lg transition">
+          {isSubmitting ? "Registrerer..." : "Registrer mottak"}
+        </button>
+        <button onClick={clearAll} disabled={items.length === 0 || isSubmitting} className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-medium rounded-lg transition">Slett alt</button>
       </div>
     </div>
   );

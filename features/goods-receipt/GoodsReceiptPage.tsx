@@ -5,19 +5,19 @@ import Link from "next/link";
 import Scanner from "./components/Scanner";
 import ManualEntry from "./components/ManualEntry";
 import ItemsList from "./components/ItemsList";
-
-interface ScannedItem {
-  barcode: string;
-  timestamp: number;
-}
+import {
+  CreateReceiptResponse,
+  ReceiptItem,
+} from "@/lib/receipts";
 
 export default function GoodsReceiptPage() {
-  const [items, setItems] = useState<ScannedItem[]>([]);
+  const [items, setItems] = useState<ReceiptItem[]>([]);
   const [manualCode, setManualCode] = useState("");
   const [scannerActive, setScannerActive] = useState(true);
   const [showManualEntry, setShowManualEntry] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleBarcodeScanned = (barcode: string) => {
     if (!barcode.trim()) return;
@@ -29,7 +29,7 @@ export default function GoodsReceiptPage() {
       setTimeout(() => setError(""), 3000);
       return;
     }
-    const newItem: ScannedItem = {
+    const newItem: ReceiptItem = {
       barcode: trimmedBarcode,
       timestamp: now,
     };
@@ -58,7 +58,7 @@ export default function GoodsReceiptPage() {
       return;
     }
 
-    const newItem: ScannedItem = {
+    const newItem: ReceiptItem = {
       barcode: trimmedBarcode,
       timestamp: Date.now(),
     };
@@ -87,6 +87,10 @@ export default function GoodsReceiptPage() {
   };
 
   const submitReceipt = async () => {
+    if (isSubmitting) {
+      return;
+    }
+
     if (items.length === 0) {
       setError("Du må registrere minst en vare");
       return;
@@ -94,6 +98,7 @@ export default function GoodsReceiptPage() {
 
     setError("");
     setSuccess("");
+    setIsSubmitting(true);
 
     try {
       const response = await fetch("/api/receipts", {
@@ -104,15 +109,18 @@ export default function GoodsReceiptPage() {
         body: JSON.stringify({ items }),
       });
 
-      if (!response.ok) {
-        throw new Error("Ugyldig svar fra API");
+      const result = (await response.json().catch(() => null)) as CreateReceiptResponse | null;
+      if (!response.ok || !result?.ok) {
+        throw new Error(result?.message || "Ugyldig svar fra API");
       }
 
-      setSuccess(`Varemottak registrert med ${items.length} vare(r)`);
+      setSuccess(result.message || `Varemottak registrert med ${items.length} vare(r)`);
       setItems([]);
       setTimeout(() => setSuccess(""), 2000);
-    } catch {
-      setError("Kunne ikke registrere mottak");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Kunne ikke registrere mottak");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -142,7 +150,7 @@ export default function GoodsReceiptPage() {
 
           {/* Items List Section */}
           <div className="lg:col-span-1">
-            <ItemsList items={items} removeItem={removeItem} clearAll={clearAll} submitReceipt={submitReceipt} />
+            <ItemsList items={items} removeItem={removeItem} clearAll={clearAll} submitReceipt={submitReceipt} isSubmitting={isSubmitting} />
             {error ? (
               <div className="mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">{error}</div>
             ) : success ? (
