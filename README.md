@@ -25,10 +25,10 @@ TESS AS has over 140 locations in Norway and a central warehouse. Today, manual 
 https://30011-proxyapi-cuafeua6bha7ckby.norwayeast-01.azurewebsites.net/swagger/#/
 
 ## Primary Functions (POC level)
-1. [ ] Login with Entra ID
-2. [ ] Overview of ongoing orders in transit (mock → real API)
-3. [ ] Detailed view of order with tracking link to Bring
-4. [ ] Possibility for goods receipt via barcode scan
+1. [ ] Login with Entra ID through Tenant and SSO (SSO temporary paused)
+3. [ ] Goods receipt with barcode scanner
+2. [ ] Overview with possibility for detailed view on orders in transit
+4. [ ] Possibile expansion with tracking link to Bring (outside of primary scope)
 
 ## Getting Started
 ### Prerequisites

@@ -23,21 +23,21 @@ Kjerneleveransen består av tre funksjonsområder:
 2. Varemottak (skanning, registrering og innsending)
 3. Sporing (oversikt og detaljer for relevante ordre/forsendelser)
 
-### 3. Fasevis gjennomføring
+### 3. Fasevis gjennomføring / implementering av flyter
 Vi bygger kjerneleveransen iterativt, med tydelig prioritet i rekkefølge:
 
-1. Fase 1: Login/auth mot Entra ID
+1. fase og flyt: Login/auth mot Entra ID
 - Integrere autentisering mot oppdragsgivers eksisterende auth-flyt.
 - Etablere og validere sesjon/cookie for videre API-kall.
 - Verifisere bruker og tilknyttet kundegrunnlag via bruker-endepunkt.
 
-2. Fase 2: Varemottak
+2. fase og flyt: Varemottak
 - Implementere skanning av strekkode med kamera på nettbrett.
 - Støtte manuell registrering som fallback.
 - Avklare strekkodeinnhold og minimum POST-payload med oppdragsgiver.
 - Koble registrering mot API-kall for innsending av mottak.
 
-3. Fase 3: Sporing
+3. fase og flyt: Sporing
 - Vise relevante ordre/forsendelser med nøkkelinformasjon.
 - Støtte enkel filtrering/søk og tydelig statusvisning.
 - Gi brukervennlig håndtering av tomme svar, feil og manglende tilgang.

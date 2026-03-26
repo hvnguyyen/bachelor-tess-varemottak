@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
-  CreateReceiptResponse,
+  CreateReceiptErrorResponse,
+  CreateReceiptSuccessResponse,
   isCreateReceiptRequest,
 } from "@/lib/receipts";
 
@@ -8,10 +9,10 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
 
   if (!isCreateReceiptRequest(body) || body.items.length === 0) {
-    return NextResponse.json<CreateReceiptResponse>(
+    return NextResponse.json<CreateReceiptErrorResponse>(
       {
         ok: false,
-        message: "Ugyldig payload. Minst én strekkode må være registrert.",
+        message: "Skann minst en strekkode for å registrere et mottak.",
       },
       { status: 400 }
     );
@@ -27,10 +28,9 @@ export async function POST(request: Request) {
     items: normalizedItems,
   });
 
-  const response: CreateReceiptResponse = {
+  const response: CreateReceiptSuccessResponse = {
     ok: true,
-    message: `Mock receipt registered with ${normalizedItems.length} item(s)`,
-    receiptId: `mock-receipt-${Date.now()}`,
+    receiptId: `temp-receipt-${Date.now()}`,
     itemCount: normalizedItems.length,
   };
 

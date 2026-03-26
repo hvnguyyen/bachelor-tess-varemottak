@@ -19,6 +19,7 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
   const [isScannerRunning, setIsScannerRunning] = useState(false);
   const lastScannedRef = useRef<{ code: string; time: number } | null>(null);
   const stoppingRef = useRef(false);
+  const scannerSessionRef = useRef(0);
 
   useEffect(() => {
     onBarcodeScannedRef.current = onBarcodeScanned;
@@ -50,11 +51,22 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
     }
   };
 
-  const startScanner = async () => {
-    if (html5QrcodeRef.current) return;
+  const startScanner = async (sessionId: number) => {
+    if (stoppingRef.current) return;
+
+    if (html5QrcodeRef.current) {
+      if (isScannerRunning) {
+        return;
+      }
+
+      await stopScanner();
+    }
+
+    let html5qrcode: Html5Qrcode | null = null;
     try {
-      const html5qrcode = new Html5Qrcode("qr-scanner");
+      html5qrcode = new Html5Qrcode("qr-scanner");
       html5QrcodeRef.current = html5qrcode;
+      const scannerInstance = html5qrcode;
 
       const onScan = (decodedText: string) => {
         const trimmed = decodedText.trim();
@@ -86,7 +98,7 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
 
       const startAttempt = async () => {
         try {
-          await html5qrcode.start(
+          await scannerInstance.start(
             { facingMode: "environment" },
             { fps: 10, qrbox, aspectRatio },
             onScan,
@@ -113,6 +125,19 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
         started = await startAttempt();
       }
 
+      if (!started) {
+        throw new Error("Scanneren klarte ikke å starte kameraet");
+      }
+
+      if (sessionId !== scannerSessionRef.current) {
+        try { await scannerInstance.stop(); } catch { }
+        try { await scannerInstance.clear(); } catch { }
+        if (html5QrcodeRef.current === scannerInstance) {
+          html5QrcodeRef.current = null;
+        }
+        return;
+      }
+
       // Force styling so the video/canvas fill the rounded container
       applyVideoStyles();
 
@@ -120,6 +145,9 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
       setError("");
     } catch (err) {
       console.error("Error starting scanner:", err);
+      if (html5qrcode && html5QrcodeRef.current === html5qrcode) {
+        html5QrcodeRef.current = null;
+      }
       setError("Kunne ikke starte kamera. Sjekk tillatelser.");
       setIsScannerRunning(false);
     }
@@ -130,25 +158,29 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
     if (stoppingRef.current) return false;
     stoppingRef.current = true;
 
+    const scanner = html5QrcodeRef.current;
+    html5QrcodeRef.current = null;
+    setIsScannerRunning(false);
+
     // Pause video and stop tracks up-front to reduce play()/remove races
     try {
       const root = document.getElementById("qr-scanner");
       const video = root?.querySelector("video") as HTMLVideoElement | null;
       if (video) {
         // silence abort/error events coming from the underlying camera implementation
-        try { (video as any).onabort = () => {}; } catch {}
-        try { (video as any).onerror = () => {}; } catch {}
-        try { video.pause(); } catch {}
+        try { (video as any).onabort = () => { }; } catch { }
+        try { (video as any).onerror = () => { }; } catch { }
+        try { video.pause(); } catch { }
         try {
           const stream = video.srcObject as MediaStream | null;
-          if (stream) stream.getTracks().forEach((t) => { try { t.stop(); } catch {} });
-          try { video.srcObject = null; } catch {}
-        } catch (e) {}
+          if (stream) stream.getTracks().forEach((t) => { try { t.stop(); } catch { } });
+          try { video.srcObject = null; } catch { }
+        } catch (e) { }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     const attemptStop = async () => {
-      if (!html5QrcodeRef.current) return true; // nothing to stop
+      if (!scanner) return true; // nothing to stop
 
       try {
         // Temporarily override Node.removeChild to swallow NotFoundError during
@@ -169,13 +201,13 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
         };
 
         try {
-          await html5QrcodeRef.current.stop();
+          await scanner.stop();
         } finally {
           // restore the original implementation regardless of stop() outcome
-          try { (Node.prototype as any).removeChild = origRemoveChild; } catch (e) {}
+          try { (Node.prototype as any).removeChild = origRemoveChild; } catch (e) { }
         }
 
-        try { await html5QrcodeRef.current.clear(); } catch (err) { console.warn("Ignored error while clearing scanner:", err); }
+        try { await scanner.clear(); } catch (err) { console.warn("Ignored error while clearing scanner:", err); }
         return true;
       } catch (err: any) {
         // html5-qrcode sometimes throws strings instead of Error objects; normalize
@@ -193,7 +225,7 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
           lower.includes("is not running or paused")
         ) {
           console.warn("Ignored transient scanner stop error:", msg);
-          try { await html5QrcodeRef.current.clear(); } catch (e) { /* ignore */ }
+          try { await scanner.clear(); } catch (e) { /* ignore */ }
           return true;
         }
 
@@ -215,25 +247,25 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
       const root = document.getElementById("qr-scanner");
       const video = root?.querySelector("video") as HTMLVideoElement | null;
       if (video) {
-        try { (video as any).onabort = () => {}; } catch {}
-        try { (video as any).onerror = () => {}; } catch {}
-        try { video.pause(); } catch {}
+        try { (video as any).onabort = () => { }; } catch { }
+        try { (video as any).onerror = () => { }; } catch { }
+        try { video.pause(); } catch { }
         try {
           const stream = video.srcObject as MediaStream | null;
-          if (stream) stream.getTracks().forEach((t) => { try { t.stop(); } catch {} });
-          try { video.srcObject = null; } catch {}
-        } catch (e) {}
+          if (stream) stream.getTracks().forEach((t) => { try { t.stop(); } catch { } });
+          try { video.srcObject = null; } catch { }
+        } catch (e) { }
       }
-    } catch (e) {}
+    } catch (e) { }
 
-    html5QrcodeRef.current = null;
-    setIsScannerRunning(false);
     stoppingRef.current = false;
     return stopped;
   };
 
   useEffect(() => {
     let resizeTimer: number | null = null;
+    const sessionId = scannerSessionRef.current + 1;
+    scannerSessionRef.current = sessionId;
 
     // Global runtime error suppression for specific benign scanner errors
     const onWindowError = (ev: ErrorEvent) => {
@@ -256,28 +288,32 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
     window.addEventListener('unhandledrejection', onUnhandledRejection as EventListener);
 
     if (scannerActive) {
-      startScanner();
+      void startScanner(sessionId);
 
       const onResize = () => {
         if (!html5QrcodeRef.current) return;
         if (resizeTimer) window.clearTimeout(resizeTimer);
         resizeTimer = window.setTimeout(async () => {
+          scannerSessionRef.current += 1;
+          const restartSessionId = scannerSessionRef.current;
           await stopScanner();
-          await startScanner();
+          await startScanner(restartSessionId);
         }, 300) as unknown as number;
       };
 
       window.addEventListener("resize", onResize);
 
       return () => {
+        scannerSessionRef.current += 1;
         window.removeEventListener("resize", onResize);
         if (resizeTimer) window.clearTimeout(resizeTimer);
-        stopScanner();
+        void stopScanner();
         window.removeEventListener('error', onWindowError);
         window.removeEventListener('unhandledrejection', onUnhandledRejection as EventListener);
       };
     } else {
-      stopScanner();
+      scannerSessionRef.current += 1;
+      void stopScanner();
       return () => {
         window.removeEventListener('error', onWindowError);
         window.removeEventListener('unhandledrejection', onUnhandledRejection as EventListener);
@@ -364,7 +400,7 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
         </div>
       ) : (
         <div className="w-full h-96 bg-gray-200 rounded-lg flex items-center justify-center text-gray-600">Kamera skjult</div>
-      )} 
+      )}
 
       <div className="mt-4 space-y-3">
         <button onClick={handlePowerClick} className="w-full px-4 py-3 bg-gray-600 text-white rounded-lg">{scannerActive ? 'Skjul kamera' : 'Skru på kamera'}</button>
