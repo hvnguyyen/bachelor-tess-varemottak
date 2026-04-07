@@ -32,7 +32,7 @@
 #5. Gyldig innlogging med brukerdata
   - Intern bruker-rute: `GET /api/me`
 
-#6. Interne API-ruter for loing/logout/session
+#6. Interne API-ruter for login/logout/session
   - Mock-provider for dev: `GET /api/mock-auth/[mode]`
   - Intern login-rute: `POST /api/auth/login`
 
@@ -40,14 +40,16 @@
   - Backend setter session-cookie (`accessToken`) og redirecter til `returnTo` som gjør en redirect til `/dashboard` med riktig bruker
 
 #8. Lokal state/cookies clean-up ved logout og ny innlogging
-  - logout/cleanup er ikke implementert i faktisk brukerflyt
-  - Nettleser husker cookies og logger bruker automatisk inn selv ved terminering av server
-  - i DashboardPage.tsx gjør 'Logg ut' bare: `localStorage.removeItem("employeeId")`og `router.push(")`
-  - Intern logout-rute for å rydde lokal cookie: `POST /api/auth/logout`
+  - Dashboard-logout kaller nå både TESS sitt `POST https://api.tessix.no/logout` og intern `POST /api/auth/logout`
+  - Logout rydder lokal brukerprofil i `localStorage` (`user-profile` og `employeeId`)
+  - Logout rydder lokal localhost-cookie og TESS sin `accessToken`-cookie
+  - Bruker sendes deretter tilbake til `/login`
 
-#9. End-to-end innloggings-flyt testet i nettleser
-  - Tenant-flyt fungerer end-to-end med unntak av at state/cookies ikke ryddes ved logout
+#9. End-to-end innloggings- og logout-flyt testet i nettleser
+  - Tenant-login fungerer end-to-end i normal nettleserkontekst
+  - Logout rydder lokal state, lokal cookie og TESS sin `accessToken`-cookie
   - SSO-flyten ble forsøkt, men satt på vent på grunn av manglende tilganger
+  - Bbruker autentiseres fremdeles sømløst ved innlogging etterfulgt av utlogging (hvilket tyder på at overliggende Entra/CIAM-sesjon ikke nødvendigvis termineres nødvendigvis fullt ut)
 
 #10. Dokumentasjon
   - Rapport ferdig utfylt, kode clean-up og docs oppdatert
@@ -65,6 +67,8 @@
    - først `GET https://api.tessix.no/user` med `credentials: include`
    - fallback til intern `GET /api/me`
 10. Ved 200: redirect til `/dashboard` med riktig bruker
+11. Ved logout kaller dashboard både `POST https://api.tessix.no/logout` og intern `POST /api/auth/logout`
+12. Appen rydder lokal brukerprofil i `localStorage` og sender bruker tilbake til `/login`
 
 ## 4. Nøkkelpunkter og viktigste feilbilder og årsaker
 
@@ -79,17 +83,22 @@
 - Mock-cookie kollisjon ved at ekte tenant session cookie ble laget på tessix.no, og en lokal mock-cookie (accessToken) på localhost
 
 # 4.2 Callback/session
-Med third-party-cookies blocked klarer ikke /auth/complete å validere sesjonen mot api/tessix.no og man havner på `login?error=auth_failed`. Med third-party-cookies blir cookie sendt med, /user returnerer riktig data og man logges inn på dashboard.
+Med third-party-cookies blocked klarer ikke `/auth/complete` å validere sesjonen mot api/tessix.no og man havner på `login?error=auth_failed`. Med third-party-cookies blir cookie sendt med, `/user` returnerer riktig data og man logges inn på dashboard.
 
 Tenant-login fungerer end-to-end i normal nettleserkontekst. I inkognito/private mode kan flyten feile dersom tredjepartscookies blokkeres, fordi sesjonscookie fra api.tessix.no da ikke blir sendt i valideringssteget fra localhost.
 
 # 4.3 Work-arounds/ Avklaringer fra oppdragsgiver
-- Fikk etterhvert bekreftet av oppdragsgiver at Entra godtar localhost (men på port 8080, og ikke 3000 som vi brukte) som redirect og Entra-tokens skal brukes mot `POST /login/cookie`. Nøkkelnavn ble avklart og brukes i lokal `.env.local`, og skal holdes lokalt per utvikler.
+Fikk etterhvert bekreftet av oppdragsgiver at Entra godtar localhost (men på port 8080, og ikke 3000 som vi brukte) som redirect og Entra-tokens skal brukes mot `POST /login/cookie`. Nøkkelnavn ble avklart og brukes i lokal `.env.local`, og skal holdes lokalt per utvikler.
+
+# 4.4 Logout / sesjonsterminering
+Logout ble forbedret slik at applikasjonen nå både rydder lokal brukerstate og kaller TESS sitt `POST /logout`-endepunkt. Dette medfører at lokal profilinformasjon, localhost-cookie og TESS sin `accessToken`-cookie slettes ved utlogging. Samtidig ble det observert at bruker i noen tilfeller fortsatt kan logge inn igjen uten manuell innskriving av legitimasjon. Dette indikerer at logout på applikasjons- og TESS-nivå fungerer, men at overliggende sesjon hos Microsoft Entra ID / CIAM ikke nødvendigvis termineres fullt ut i samme steg.
+
 
 ## 5. Presise avgrensinger (kjente begrensninger som må dokumenteres i rapport)
 - Incognito/private mode kan blokkere third-party cookies og gi `auth_failed`, selv om flyten ellers er korrekt.
 - Tester må kjøres med riktig cookie-policy når session valideres cross-site fra `localhost`.
 - Mock-innlogging skal kun brukes for utvikling og demo fallback.
+- Logout rydder lokal state og TESS sin `accessToken`-cookie, men overliggende Entra/CIAM-sesjon termineres ikke nødvendigvis fullt ut i samme steg.
 
 ## 6. Oppsummering / Konklusjon av fase 1
 Fasen for auth-baseline er funksjonell for POC i normal nettleserkontekst, og følgende er verifisert i nettleser:
@@ -97,7 +106,11 @@ Fasen for auth-baseline er funksjonell for POC i normal nettleserkontekst, og f�
   - `GET https://api.tessix.no/user` returnerer brukerprofil med 200.
   - Request inneholder `Cookie: accessToken=...`.
   - Redirect-kjeden lander på `/auth/complete` og videre til `/dashboard`.
-  - Sesjon etableres, bruker valideres og dashboard lastes inn med viser riktig Tessix-bruker (ikke mock-bruker).
+  - Sesjon etableres, bruker valideres og dashboard lastes inn med viser riktig TESS-brukerprofil (Tessix).
+  - Logout rydder lokal brukerprofil, lokal cookie og TESS sin `accessToken`-cookie
+  - Logout kaller TESS sitt `POST /logout` og intern `POST /api/auth/logout`
 
 ## 7. Refleksjonsnotat i retrospekt (til sluttrapport)
-I fase 1 etablerte vi en fungerende autentiseringsflyt mot TESS sitt backend-only auth-oppsett med Entra/CIAM. Etter iterativ feilsøking av redirect, session-cookie og cross-site validering landet vi på en stabil løsning der bruker autentiseres via `/auth/tenant`, returneres til appens callback-side, valideres mot `GET /user`, og sendes til dashboard med korrekt brukerprofil. Arbeidet avdekket særlig viktigheten av cookie-policy i utviklingsmiljø (`localhost`) og tydelig ansvarsdeling mellom frontend og backend i auth-flyten.
+I fase 1 etablerte vi en fungerende autentiseringsflyt mot TESS sitt backend-only auth-oppsett med Entra/CIAM. Etter iterativ feilsøking av redirect, session-cookie og cross-site validering landet vi på en stabil løsning der bruker autentiseres via `/auth/tenant`, returneres til appens callback-side, valideres mot `GET /user`, og sendes til dashboard med korrekt brukerprofil. 
+
+I en senere iterasjon ble også logout-flyten forbedret slik at applikasjonen nå rydder både lokal state og TESS sin `accessToken`-cookie. Arbeidet avdekket særlig viktigheten av cookie-policy i utviklingsmiljø (`localhost`), tydelig ansvarsdeling mellom frontend og backend i auth-flyten, samt forskjellen mellom logout i applikasjonen og full terminering av overliggende identitetssesjon.

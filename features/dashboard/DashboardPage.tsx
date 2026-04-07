@@ -1,26 +1,61 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { clearStoredUserProfile, getStoredUserProfile } from "@/lib/userProfile";
 import ActionCard from "./components/ActionCard";
+
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [employeeId, setEmployeeId] = useState("");
-  const [mounted, setMounted] = useState(false);
+
+  const profile = typeof window === "undefined" ? null : getStoredUserProfile();
+  const employeeName = profile?.name || "TESS-bruker";
+  const employeeId = profile?.employeeId || "Ukjent ansatt-ID";
+
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const id = localStorage.getItem("employeeId");
-    if (id) setEmployeeId(id);
-    setMounted(true);
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!profileMenuRef.current?.contains(event.target as Node)) {
+        setIsProfileOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+    };
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("employeeId");
-    router.push("/");
-  };
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
 
-  if (!mounted) return null;
+    setIsLoggingOut(true);
+    setIsProfileOpen(false);
+
+    const externalApiBase = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "");
+
+    try {
+      if (externalApiBase) {
+        await fetch(`${externalApiBase}/logout`, {
+          method: "POST",
+          credentials: "include"
+        }).catch(() => undefined);
+      }
+
+      await fetch("/api/auth/logout", {
+        method: "POST"
+      }).catch(() => undefined);
+
+    } finally {
+      clearStoredUserProfile();
+      router.push("/");
+    }
+  };
 
   return (
     <main className="flex min-h-screen flex-col bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -29,8 +64,49 @@ export default function DashboardPage() {
         <div className="max-w-6xl mx-auto px-4 py-6 flex justify-between items-center">
           <h1 className="text-3xl font-bold text-gray-800">TESS Digitalt Varemottak</h1>
           <div className="flex items-center gap-4">
-            <span className="text-gray-600">Innlogget som ansatt: <span className="font-medium">{employeeId}</span></span>
-            <button onClick={handleLogout} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition">Logg ut</button>
+            <div className="flex items-center gap-2 text-gray-600">
+              <span suppressHydrationWarning>
+                Innlogget som ansatt: <span className="font-medium">{employeeName}</span>
+              </span>
+              <div className="relative" ref={profileMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsProfileOpen((prev) => !prev)}
+                  className="flex items-center gap-1 rounded-full border border-gray-300 px-3 py-1 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                >
+                  👤
+                  <svg
+                    className={`h-4 w-4 transition ${isProfileOpen ? "rotate-180" : ""}`}
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </button>
+                {isProfileOpen ? (
+                  <div className="absolute right-0 top-full z-10 mt-2 min-w-64 rounded-xl border border-gray-200 bg-white p-4 shadow-lg">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Ansatt-ID
+                    </p>
+                    <p className="mt-1 break-all text-sm font-medium text-gray-800" suppressHydrationWarning>
+                      {employeeId}
+                    </p>
+                    <div className="my-3 border-t border-gray-200" />
+                    <button
+                      onClick={() => void handleLogout()} disabled={isLoggingOut}
+                      className="w-full rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700"
+                    >
+                      {isLoggingOut ? "Logger ut..." : "Logg ut"}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </div>
           </div>
         </div>
       </header>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { extractUserProfile, saveUserProfile } from "@/lib/userProfile";
 
 type UserLike = {
   name?: string;
@@ -11,8 +12,10 @@ type UserLike = {
 };
 
 function toProfileLabel(data: unknown) {
+
   const source = Array.isArray(data) ? data[0] : data;
   const meData = (source ?? null) as UserLike | null;
+
   return (
     meData?.name ||
     meData?.username ||
@@ -33,32 +36,49 @@ export default function AuthCompletePage() {
       try {
         const externalApiBase = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "");
 
-        // Preferred for backend-only auth: validate against TESS session cookie directly.
         if (externalApiBase) {
+
           const externalResponse = await fetch(`${externalApiBase}/user`, {
             cache: "no-store",
             credentials: "include",
+
           });
+
           if (externalResponse.ok) {
+
             const externalData = await externalResponse.json().catch(() => null);
-            const profileLabel = toProfileLabel(externalData);
-            localStorage.setItem("employeeId", profileLabel);
+            const profile = extractUserProfile(externalData);
+
+            if (!profile) {
+              throw new Error("Ugyldig brukerdata fra ekstern API");
+            }
+
+            saveUserProfile(profile);
+
             if (!cancelled) router.replace("/dashboard");
             return;
           }
         }
 
-        // Fallback for local/mock flow.
+        // Fallback for mock flow.
         const meResponse = await fetch("/api/me", { cache: "no-store" });
         if (!meResponse.ok) throw new Error("Kunne ikke validere session");
-        const meData = await meResponse.json().catch(() => null);
-        const profileLabel = toProfileLabel(meData);
 
-        localStorage.setItem("employeeId", profileLabel);
+        const meData = await meResponse.json().catch(() => null);
+        const profile = extractUserProfile(meData);
+
+        if (!profile) {
+          throw new Error("Ugyldig brukerdata fra /api/me");
+        }
+
+        saveUserProfile(profile);
+
         if (!cancelled) router.replace("/dashboard");
+
       } catch {
         if (!cancelled) {
           setMessage("Innlogging feilet. Sender deg tilbake til login...");
+
           setTimeout(() => {
             router.replace("/login?error=auth_failed");
           }, 1200);

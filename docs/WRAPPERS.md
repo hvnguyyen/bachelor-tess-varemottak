@@ -14,7 +14,9 @@ Because app/../page.tsx is the routing-layer (Next.js App Router) and features/.
 2. Overview and scaling
 3. Easier testing and reusable code
 
-If we on a later time switch structure or framework, or reorganize features the routing-layer will stay intact and stable. When the project scales, its much easier to navigate and maintain. Lastly, the feature-components may be used in several routes or in modules/embedded views without being locked to app/.
+If we on a later time should switch structure or framework or reorganize features, the routing-layer will stay more intact and stable making it much easier to navigate and maintain when (and if) the project scales,
+
+Lastly, the feature-components may be used in several routes or in modules/embedded views without being locked to app/.
 
 ## Separating Routing and Functionality gives us:
 ** Routing layer -> Feature layer **

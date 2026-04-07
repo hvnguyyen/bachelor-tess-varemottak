@@ -256,15 +256,11 @@ export default function OrdersOverview({ customerNumber, compact = false }: Prop
         </div>
       ) : null}
 
-      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-        API-et returnerer svært mange ordre for dette kundenummeret. Tabellen viser derfor én rad per ordrenummer, og detaljene åpnes ved behov.
-      </div>
-
       {!hasRequestedLoad ? (
-        <div className="mt-6 rounded-xl border border-gray-200 bg-gray-50 p-8 text-center">
-          <p className="text-gray-600">
-            Ordredata lastes ikke inn automatisk. Bruk filtrene over for å snevre inn resultatet før du henter data.
-          </p>
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+
+          Tabellen viser én rad per ordrenummer, og detaljene kan åpnes ved behov. Bruk filtrene over for å hente ordre.
+
         </div>
       ) : loading ? (
         <div className="mt-6 rounded-xl border border-gray-200 bg-gray-50 p-8 text-center text-gray-600">

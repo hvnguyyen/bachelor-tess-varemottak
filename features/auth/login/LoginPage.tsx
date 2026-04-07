@@ -2,14 +2,18 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { extractUserProfile, saveUserProfile } from "@/lib/userProfile";
 
 type ExternalMode = "tenant" | "sso";
 
 export default function LoginPage() {
+
   const router = useRouter();
   const searchParams = useSearchParams();
+
   const externalApiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
   const useMockApi = process.env.NEXT_PUBLIC_USE_MOCK_API === "true";
+
   const hasHandledMockCallback = useRef(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -21,21 +25,15 @@ export default function LoginPage() {
       throw new Error(err?.message || "Ingen gyldig session funnet");
     }
 
-    const meData = (await meResponse.json().catch(() => null)) as
-      | {
-        name?: string;
-        username?: string;
-        email?: string;
-        userName?: string;
-      }
-      | null;
-    const profileLabel =
-      meData?.name ||
-      meData?.username ||
-      meData?.email ||
-      meData?.userName ||
-      "TESS-bruker";
-    localStorage.setItem("employeeId", profileLabel);
+    const meData = await meResponse.json().catch(() => null);
+
+    const profile = extractUserProfile(meData);
+
+    if (!profile) {
+      throw new Error("Kunne ikke hente brukerprofil");
+    }
+
+    saveUserProfile(profile);
     router.push("/dashboard");
   }, [router]);
 

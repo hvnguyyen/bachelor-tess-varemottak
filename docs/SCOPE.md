@@ -1,5 +1,7 @@
-## Scope og leveranseplan (POC)
+## Disclaimer
+Dette dokumentet beskriver opprinnelig planlagt scope og leveransebilde for POC-en. Senere justeringer og avvik fra denne planen er dokumentert i fase-loggene.
 
+## Scope og leveranseplan (POC)
 Vår løsning: 
 - Ren webapp for nettbrett med responsivt UI
 - Stack
@@ -8,7 +10,7 @@ Vår løsning:
     * Tailwind CSS
     * Axios
 - Integrasjoner
-    * TESS Proxy API
+    * TESS API / TESS Proxy API
     * Microsoft Entra ID
 
 ### 1. Formål
@@ -42,7 +44,7 @@ Vi bygger kjerneleveransen iterativt, med tydelig prioritet i rekkefølge:
 - Støtte enkel filtrering/søk og tydelig statusvisning.
 - Gi brukervennlig håndtering av tomme svar, feil og manglende tilgang.
 
-### 4. In-scope (MVP)
+### 4. MVP (in-scope)
 Følgende inngår i MVP:
 
 - Nettbrettvennlig webgrensesnitt (landskap og portrett) med enkel og tydelig flyt.

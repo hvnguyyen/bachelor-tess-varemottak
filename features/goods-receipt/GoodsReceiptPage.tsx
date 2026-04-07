@@ -1,37 +1,49 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { getStoredUserProfile } from "@/lib/userProfile";
+import { addReceiptToHistory, getReceiptHistory } from "@/lib/receiptHistory";
+import { CreateReceiptResponse, ReceiptItem, StoredReceipt } from "@/lib/receipts";
+
+import Link from "next/link";
 import Scanner from "./components/Scanner";
 import ManualEntry from "./components/ManualEntry";
 import ItemsList from "./components/ItemsList";
 import OrdersOverview from "./components/OrdersOverview";
 import ReceiptConfirmationModal from "./components/ReceiptConfirmationModal";
-import { addReceiptToHistory, getReceiptHistory } from "@/lib/receiptHistory";
-import {
-  CreateReceiptResponse,
-  ReceiptItem,
-  StoredReceipt,
-} from "@/lib/receipts";
-
-const CUSTOMER_NUMBER = "169999";
 
 export default function GoodsReceiptPage() {
   const router = useRouter();
+
+  const [hasReceiptHistory, setHasReceiptHistory] = useState(false);
+
+  const [employeeId, setEmployeeId] = useState("Ukjent bruker");
+  const [customerNumber, setCustomerNumber] = useState<string | null>(null);
+  const [availableCustomerNumbers, setAvailableCustomerNumbers] = useState<string[]>([]);
+
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
   const [items, setItems] = useState<ReceiptItem[]>([]);
   const [manualCode, setManualCode] = useState("");
   const [receiptModeOpen, setReceiptModeOpen] = useState(false);
   const [scannerActive, setScannerActive] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(true);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [hasReceiptHistory, setHasReceiptHistory] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 
   useEffect(() => {
     setHasReceiptHistory(getReceiptHistory().length > 0);
+
+    const profile = getStoredUserProfile();
+    if (!profile) {
+      setError("Fant ikke bruker. Logg inn på nytt");
+      return;
+    }
+    setEmployeeId(profile.employeeId);
+    setAvailableCustomerNumbers(profile.customerNumbers);
+    setCustomerNumber(profile.defaultCustomerNumber ?? profile.customerNumbers[0] ?? null);
   }, []);
 
   const handleBarcodeScanned = (barcode: string) => {
@@ -117,6 +129,11 @@ export default function GoodsReceiptPage() {
   };
 
   const openConfirmModal = () => {
+    if (!customerNumber) {
+      setError("Fant ikke kundenummer for innlogget bruker");
+      return;
+    }
+
     if (items.length === 0) {
       setError("Du må registrere minst en vare");
       return;
@@ -136,6 +153,11 @@ export default function GoodsReceiptPage() {
   };
 
   const submitReceipt = async () => {
+    if (!customerNumber) {
+      setError("Fant ikke kundenummer for innlogget bruker");
+      return;
+    }
+
     if (isSubmitting) {
       return;
     }
@@ -160,8 +182,8 @@ export default function GoodsReceiptPage() {
         receiptId: result.receiptId || `temp-receipt-${Date.now()}`,
         submittedAt: Date.now(),
         itemCount: items.length,
-        customerNumber: CUSTOMER_NUMBER,
-        employeeId: localStorage.getItem("employeeId") || "Ukjent bruker",
+        customerNumber,
+        employeeId,
         items,
       };
 
@@ -203,22 +225,18 @@ export default function GoodsReceiptPage() {
         <div className="mb-6 bg-white rounded-2xl shadow-sm ring-1 ring-gray-200 p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">Mottaksflyt</p>
+              <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">Registrere varemottak?</p>
               <h2 className="mt-1 text-xl font-semibold text-gray-900">
-                {receiptModeOpen ? "Kamera og mottaksregistrering er åpnet" : "Ordredata kan hentes ved behov"}
+                {receiptModeOpen ? "Kamera og mottaksregistrering er åpnet" : "Kamera og mottaksregistrering er lukket"}
               </h2>
-              <p className="mt-2 text-sm text-gray-600">
-                Åpne kamera når du vil registrere kolli. Ordredata hentes først når du ber om det, og komprimeres fortsatt når mottaksregistrering er aktiv.
-              </p>
             </div>
 
             <button
               onClick={toggleReceiptMode}
-              className={`px-4 py-3 rounded-lg font-medium text-white transition ${
-                receiptModeOpen
-                  ? "bg-gray-700 hover:bg-gray-800"
-                  : "bg-blue-600 hover:bg-blue-700"
-              }`}
+              className={`px-4 py-3 rounded-lg font-medium text-white transition ${receiptModeOpen
+                ? "bg-gray-700 hover:bg-gray-800"
+                : "bg-blue-600 hover:bg-blue-700"
+                }`}
             >
               {receiptModeOpen ? "Skjul kamera og mottaksregistrering" : "Åpne kamera for mottak av kolli"}
             </button>
@@ -265,14 +283,39 @@ export default function GoodsReceiptPage() {
           </div>
         ) : null}
 
-        <OrdersOverview customerNumber={CUSTOMER_NUMBER} compact={receiptModeOpen} />
+        {availableCustomerNumbers.length > 1 ? (
+          <div className="mb-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200">
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Velg kundenummer
+            </label>
+            <select
+              value={customerNumber ?? ""}
+              onChange={(event) => setCustomerNumber(event.target.value || null)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2"
+            >
+              {availableCustomerNumbers.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
+
+        {customerNumber ? (
+          <OrdersOverview customerNumber={customerNumber} compact={receiptModeOpen} />
+        ) : (
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-800">
+            Fant ikke kundenummer for innlogget bruker. Logg inn på nytt for å hente riktig kundegrunnlag.
+          </div>
+        )}
       </div>
 
       <ReceiptConfirmationModal
         isOpen={isConfirmModalOpen}
         items={items}
-        customerNumber={CUSTOMER_NUMBER}
-        employeeId={typeof window === "undefined" ? "Ukjent bruker" : localStorage.getItem("employeeId") || "Ukjent bruker"}
+        customerNumber={customerNumber ?? "Ukjent kundenummer"}
+        employeeId={employeeId}
         isSubmitting={isSubmitting}
         error={error}
         onClose={closeConfirmModal}
