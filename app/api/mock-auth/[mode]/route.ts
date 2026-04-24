@@ -19,7 +19,16 @@ export async function GET(request: NextRequest, context: Context) {
   const idToken = `mock-id-token-${mode}-${Date.now()}`;
   const accessToken = MOCK_ACCESS_TOKEN;
 
-  const redirectUrl = new URL("/login", request.url);
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const forwardedHost =
+    request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+
+  const externalOrigin =
+    forwardedProto && forwardedHost
+      ? `${forwardedProto}://${forwardedHost}`
+      : request.nextUrl.origin;
+
+  const redirectUrl = new URL("/login", externalOrigin);
   redirectUrl.searchParams.set("mockAuth", "success");
   redirectUrl.searchParams.set("mode", mode);
   redirectUrl.searchParams.set("idToken", idToken);
