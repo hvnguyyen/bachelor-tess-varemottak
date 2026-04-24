@@ -3,11 +3,11 @@
 ### 1. Formål
 API-laget i prosjektet fungerer som et lag mellom UI og TESS API med det formål å
 
-- Skjerme frontend fra endringer i eksterne API-kontrakter der det er mulig.
-- Samle autentisering, sesjonshåndtering og feilhåndtering ett sted.
-- Støtte lokal utvikling og testing gjennom interne API-ruter og mock-flyt der det er nødvendig.
-- Gjøre utvikling og testing mulig også uten dedikert sandbox.
-- Legge til rette for en konsistent POC-arkitektur.
+- Skjerme frontend fra endringer i eksterne API-kontrakter der det er mulig
+- Samle autentisering, sesjonshåndtering og feilhåndtering ett sted
+- Støtte lokal utvikling og testing gjennom interne API-ruter og mock-flyt der det er nødvendig
+- Gjøre utvikling og testing mulig også uten dedikert sandbox
+- Legge til rette for en konsistent POC-arkitektur
 
 ### 2. Prinsipper
 Vi speiler ikke hele Swagger/API-flaten til TESS. Vi implementerer kun endepunkter og integrasjoner som støtter kjerneflytene for POC-en:
@@ -16,15 +16,16 @@ Vi speiler ikke hele Swagger/API-flaten til TESS. Vi implementerer kun endepunkt
 2. Varemottak
 3. Sporingsforberedende ordrevisualisering
 
-Kontrakten i BFF-/mellomlaget (Backend-For-Frontend) eies av prosjektet og er bevisst smalere enn det eksterne API-et. Der server-side integrasjon ikke lot seg gjennomføre som planlagt, brukes et klientbasert adapterlag som midlertidig fallback.
-*`https://www.geeksforgeeks.org/system-design/backend-for-frontend-pattern/`
+Kontrakten i BFF-/mellomlaget (Backend-For-Frontend) eies av prosjektet og er bevisst smalere enn det eksterne API-et. Der server-side integrasjon ikke lar seg gjennomføre som planlagt, vil vi vurder å bruke et klientbasert adapterlag som midlertidig fallback. Vi tilstreber å holde arkitekturen konsistent ved å kun implementere ett enkelt mellomlag.
+
+*BFF: `https://www.geeksforgeeks.org/system-design/backend-for-frontend-pattern/`
 
 ### 3. Typer routing
 Vi har to ulike typer routing i samme prosjekt: sideruter og API-ruter.
 
-- Sideruter (`page.tsx`) styrer hva brukeren ser i nettleseren og hvilken URL som viser hvilken side.
-    - Skrevet i typescript + JavaScript XML og er laget som tynne wrappers som kun rendrer en feature-komponent.
-- API-ruter (`route.ts`) eksponerer HTTP-endepunkter internt i appen og returnerer data, ikke UI.
+- Sideruter (`page.tsx`) styrer hva brukeren ser i nettleseren og hvilken URL som viser hvilken side
+    - Skrevet i typescript + JavaScript XML og er laget som tynne wrappers som kun rendrer en feature-komponent
+- API-ruter (`route.ts`) eksponerer HTTP-endepunkter internt i appen og returnerer data, ikke UI
 
 I tillegg finnes et eget UI-/featurelag i `features`, der selve sideinnholdet og interaksjonslogikken ligger. Denne strukturen gir en tydelig oppdeling mellom:
 
@@ -38,11 +39,11 @@ Disse endepunktene utgjør prosjektets interne API-kontrakt:
 
 - `POST /api/auth/login`
 - `POST /api/auth/logout`
-- `GET /api/me` (routes til dashbord)
 - `POST /api/receipts`
 
-- `GET /api/orders/`
-    ...ble ikke stående som aktiv løsning i fase 2 fordi server-side kall mot TESS sitt ordre-endepunkt ble stoppet av Cloudflare. Ordrehenting skjer derfor foreløpig via et klientbasert adapterlag i frontend.
+- `GET /api/me` (routes til dashbord)
+- `GET /api/orders/` (server-side kall for ordrehenting er fikset fra fase 2)
+- `GET /api/warehouses`
 
 Mock-støtte brukes der den faktisk er nødvendig for POC-flyten:
 1. `POST /api/auth/login` for mock/dev-innlogging
@@ -52,10 +53,12 @@ Mock-støtte brukes der den faktisk er nødvendig for POC-flyten:
 Eventuelle ekstra ruter legges kun til dersom de støtter en konkret del av kjerneleveransen.
 
 ### 5. Eksternt API og miljø
-- Primær base-URL: `https://api.tessix.no/`
-- Prosjektet har ikke hatt et eget fullverdig testmiljø/sandbox.
-- Ekte API-kall og lokal mock-flyt må støttes avhengig av hva som er tilgjengelig i utviklingssituasjonen.
-- Enkelte kall fungerer i browser-kontekst, men ikke server-side fra localhost, noe som har påvirket valg av integrasjonsmønster i POC-en.
+- Primær base-URL: `https://api.tessix.no/` (TESS_API_BASE_URL)
+- Ordrehenting base-URL: `https://30011-proxyapi-cuafeua6bha7ckby.norwayeast-01.azurewebsites.net` (TESS_ORDERS_API_BASE_URL)
+- Next Public base-URL: `https://api.tessix.no` (NEXT_PUBLIC_API_BASE_URL)
+- Prosjektet har ingen, og har ikke hatt et eget fullverdig testmiljø/sandbox
+- Ekte API-kall og lokal mock-flyt må støttes avhengig av hva som er tilgjengelig i utviklingssituasjonen
+- Enkelte kall fungerer i browser-kontekst, men ikke server-side fra localhost, noe som har påvirket valg av integrasjonsmønster i POC-en
 
 ### 6. Kjerneflyt for login/auth/session (fase 1)
 1. Bruker åpner webappen på `/login`
@@ -86,7 +89,17 @@ Merk: Overliggende Entra/CIAM-sesjon termineres ikke nødvendigvis fullt ut i sa
 10. Mock-ruten returnerer vellykket respons, og mottaket lagres lokalt i `localStorage` som midlertidig historikk
 
 ### 8. Kjerneflyt for sporingsverktøy (fase 3)
-%% TODO
+1. Bruker trykker på `Sporingsverktøy` fra dashboard
+2. Sporingsverktøyet åpnes under `/track-parcel` og relevant data hentes fra lokal brukerprofil-helper
+3. Tilgjengelige lagervalg hentes fra intern route `GET /api/warehouses` som proxier mot TESS sitt warehouse-endepunkt
+4. Siden åpnes med `Hent Ordre`-knapp og filtervalg
+5. Ved `Hent ordre` kaller frontend intern route `GET /api/orders?customerNumber=<customerNumber>&page=<page>&pageSize=<pageSize>`
+6. Bruker kan velge fritekstsøk, lager, statuskode og antall ordre pr side og brukes på lastet siden i visningen
+7. Intern `/api/orders` proxier server-side videre til TESS sitt ordre-endepunkt via Azure-base-URLen for ordreproxy
+8. TESS returnerer ordre med `data` og `meta`
+9. Frontend mapper ordredata til en sporingsrettet visningsmodell i `tracking.ts` og viser én rad pr ordrenummer
+10. `Vis detaljer` gir detaljevisning for en ordre
+11. `Forrige side` og `Neste side` lar bruker navigere mellom sider
 
 ### 9. Mock-strategi
 Siden prosjektet ikke har hatt et fullverdig testmiljø, støtter løsningen mock-modus der det er nødvendig under utvikling:
@@ -99,20 +112,20 @@ Ved manglende eller utløpt TESS-token kan appen kjøres i mock-mode med:
 - `NEXT_PUBLIC_USE_MOCK_API=true` for klientflyt i login-siden
 
 Effekt i dagens løsning:
-- `POST /api/auth/login` setter lokal mock-cookie (`accessToken`) når mock-mode er aktiv.
-- `GET /api/me` validerer cookie og returnerer mock-bruker i mock-mode.
-- Live-kall til TESS brukes kun når mock-mode er av.
+- `POST /api/auth/login` setter lokal mock-cookie (`accessToken`) når mock-mode er aktiv
+- `GET /api/me` validerer cookie og returnerer mock-bruker i mock-mode
+- Live-kall til TESS brukes kun når mock-mode er av
 
-I dagens løsning er mock-strategien bevisst begrenset. Ordreintegrasjonen bruker ekte TESS-endepunkt i browser-kontekst, mens auth og mottaksregistrering fortsatt har lokal mock-støtte for utvikling og demo.
+I dagens løsning er mock-strategien bevisst begrenset. Ordreintegrasjonen bruker ekte TESS-endepunkt i server-kontekst etter revidert løsning fra fase 2 til 3, mens auth og mottaksregistrering fortsatt har lokal mock-støtte for utvikling og demo.
 
 ### 10. Feilhåndtering og logging
-- Feilresponser håndteres eksplisitt før data brukes videre i applikasjonen.
-- Logging er lagt på et nivå egnet for utvikling og debugging, uten å eksponere sensitiv informasjon i klienten.
-- Autentiseringsfeil, nettverksfeil og manglende data håndteres med tydelige fallback- eller feilmeldinger.
-- For ordreintegrasjonen ble feilhåndtering også et spørsmål om arkitektur, siden server-side proxy måtte erstattes av klientadapter som midlertidig løsning.
+- Feilresponser håndteres eksplisitt før data brukes videre i applikasjonen
+- Logging er lagt på et nivå egnet for utvikling og debugging, uten å eksponere sensitiv informasjon i klienten
+- Autentiseringsfeil, nettverksfeil og manglende data håndteres med tydelige fallback- eller feilmeldinger
+- For å holde arkitekturen konsistent ble klient-adapter work-around-løsningen fra fase 2 erstattet med server-side proxy i en senere iterasjon da dette lot seg gjøre via ny base-URL fra oppdragsgiver. Dette resulterer riktignok i at accessToken i noen tilfeller vil utløpe, og må da manuelt hentes fra devTools på `Tessix.no` og oppdateres i miljøvariabler-filen
 
 ### 11. Avgrensning
-- API-laget i prosjektet er et POC-lag, ikke en full produksjonsgateway.
-- Fokus er på robuste flyter for kjerneleveransene, ikke komplett dekning av hele TESS API-flaten.
-- Der server-side mellomlag ikke lot seg gjennomføre, brukes klientadapter som midlertidig løsning.
-- Mottaksregistrering er foreløpig ikke ERP-integrert og lagres kun lokalt som demostøtte.
+- API-laget i prosjektet er et POC-lag, ikke en full produksjonsgateway
+- Fokus er på robuste flyter for kjerneleveransene, ikke komplett dekning av hele TESS API-flaten
+- Mottaksregistrering er foreløpig ikke ERP-integrert og lagres kun lokalt som demostøtte
+- Server-side proxy beholdes selv om lokal utvikling fortsatt er avhengig av manuelt oppdatert accessToken ved utløpt token

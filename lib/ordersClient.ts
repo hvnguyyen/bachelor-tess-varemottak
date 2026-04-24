@@ -1,7 +1,7 @@
 import { GetOrdersApiResponse } from "@/lib/orders";
 
-const ORDERS_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "https://api.tessix.no";
+// const ORDERS_BASE_URL =
+// process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "https://api.tessix.no";
 
 type GetOrdersParams = {
   customerNumber: string;
@@ -16,8 +16,10 @@ type GetOrdersParams = {
 };
 
 export async function fetchOrders(params: GetOrdersParams): Promise<GetOrdersApiResponse> {
-  const path = `${ORDERS_BASE_URL}/order/${params.customerNumber}`;
+  //const path = `${ORDERS_BASE_URL}/order/${params.customerNumber}`;
   const query = new URLSearchParams();
+
+  query.set("customerNumber", params.customerNumber);
 
   if (params.ordernumber) query.set("ordernumber", params.ordernumber);
   if (params.invoicenumber) query.set("invoicenumber", params.invoicenumber);
@@ -28,9 +30,9 @@ export async function fetchOrders(params: GetOrdersParams): Promise<GetOrdersApi
   if (params.page) query.set("page", params.page.toString());
   if (params.pageSize) query.set("pageSize", params.pageSize.toString());
 
-  const url = query.toString() ? `${path}?${query.toString()}` : path;
+  // const url = query.toString() ? `${path}?${query.toString()}` : path;
 
-  const response = await fetch(url, {
+  const response = await fetch(`/api/orders?${query.toString()}`, {
     method: "GET",
     credentials: "include",
     cache: "no-store",

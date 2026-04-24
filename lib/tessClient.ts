@@ -1,15 +1,27 @@
 import axios from "axios";
 
-const baseURL = process.env.TESS_API_BASE_URL;
+const apiBaseURL = process.env.TESS_API_BASE_URL;
+const ordersBaseURL = process.env.TESS_ORDERS_API_BASE_URL || apiBaseURL;
 
 export const tessClient = axios.create({
-    baseURL,
+    baseURL: apiBaseURL,
+    timeout: 10000,
+})
+
+export const tessOrdersClient = axios.create({
+    baseURL: ordersBaseURL,
     timeout: 10000,
 })
 
 export function ensureTessApiConfigured() {
-    if (!baseURL) {
+    if (!apiBaseURL) {
         throw new Error("Missing TESS_API_BASE_URL in environment");
+    }
+}
+
+export function ensureTessOrdersApiConfigured() {
+    if (!ordersBaseURL) {
+        throw new Error("Missing TESS_ORDERS_API_BASE_URL (or TESS_API_BASE_URL) in environment");
     }
 }
 

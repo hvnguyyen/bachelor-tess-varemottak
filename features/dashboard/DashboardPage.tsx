@@ -9,14 +9,19 @@ import ActionCard from "./components/ActionCard";
 export default function DashboardPage() {
   const router = useRouter();
 
-  const profile = typeof window === "undefined" ? null : getStoredUserProfile();
-  const employeeName = profile?.name || "TESS-bruker";
-  const employeeId = profile?.employeeId || "Ukjent ansatt-ID";
-
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [employeeName, setEmployeeName] = useState("TESS-bruker");
+  const [employeeId, setEmployeeId] = useState("Ukjent ansatt-ID");
 
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const profile = getStoredUserProfile();
+
+    setEmployeeName(profile?.name || "TESS-bruker");
+    setEmployeeId(profile?.employeeId || "Ukjent ansatt-ID");
+  }, []);
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
