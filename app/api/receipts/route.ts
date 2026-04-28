@@ -1,11 +1,19 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import {
   CreateReceiptErrorResponse,
   CreateReceiptSuccessResponse,
   isCreateReceiptRequest,
 } from "@/lib/receipts";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const accessToken = request.cookies.get("accessToken")?.value;
+  if (!accessToken) {
+    return NextResponse.json<CreateReceiptErrorResponse>(
+      { ok: false, message: "Ikke autentisert" },
+      { status: 401 }
+    );
+  }
+
   const body = await request.json().catch(() => null);
 
   if (!isCreateReceiptRequest(body) || body.items.length === 0) {
@@ -22,11 +30,6 @@ export async function POST(request: Request) {
     barcode: item.barcode.trim(),
     timestamp: item.timestamp,
   }));
-
-  console.log("POST /api/receipts", {
-    itemCount: normalizedItems.length,
-    items: normalizedItems,
-  });
 
   const response: CreateReceiptSuccessResponse = {
     ok: true,

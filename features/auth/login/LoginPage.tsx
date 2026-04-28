@@ -1,41 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { extractUserProfile, saveUserProfile } from "@/lib/userProfile";
+import { useState } from "react";
 
 type ExternalMode = "tenant" | "sso";
 
 export default function LoginPage() {
-
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
   const externalApiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
   const useMockApi = process.env.NEXT_PUBLIC_USE_MOCK_API === "true";
 
-  const hasHandledMockCallback = useRef(false);
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-
-  const resolveProfileAndGoDashboard = useCallback(async () => {
-    const meResponse = await fetch("/api/me", { cache: "no-store" });
-    if (!meResponse.ok) {
-      const err = await meResponse.json().catch(() => ({}));
-      throw new Error(err?.message || "Ingen gyldig session funnet");
-    }
-
-    const meData = await meResponse.json().catch(() => null);
-
-    const profile = extractUserProfile(meData);
-
-    if (!profile) {
-      throw new Error("Kunne ikke hente brukerprofil");
-    }
-
-    saveUserProfile(profile);
-    router.push("/dashboard");
-  }, [router]);
 
   const handleExternalLogin = async (externalMode: ExternalMode) => {
     setError("");
@@ -44,12 +17,22 @@ export default function LoginPage() {
       return;
     }
 
-    // Clear local mock/local session before starting external auth.
+    // Clear any existing session before starting a new external auth flow.
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
 
     const base = externalApiBase.replace(/\/+$/, "");
-    const returnTo = `${window.location.origin}/auth/complete`;
-    window.location.href = `${base}/auth/${externalMode}?returnTo=${encodeURIComponent(returnTo)}`;
+    const returnTo = "https://bachelor-tess-varemottak.onrender.com/auth/complete";
+    // const returnTo = `${window.location.origin}/auth/complete`;
+    const redirectUrl = `${base}/auth/${externalMode}?returnTo=${encodeURIComponent(returnTo)}`;
+
+    console.log("[auth redirect]", {
+      mode: externalMode,
+      origin: window.location.origin,
+      returnTo,
+      redirectUrl,
+    });
+
+    window.location.href = redirectUrl;
   };
 
   const handleTtmLogin = () => {
@@ -58,47 +41,9 @@ export default function LoginPage() {
       setError("TTM ID er kun tilgjengelig i dev med NEXT_PUBLIC_USE_MOCK_API=true");
       return;
     }
+    // mock-auth sets the session cookie server-side and redirects directly to /auth/complete.
     window.location.href = "/api/mock-auth/tenant";
   };
-
-  useEffect(() => {
-    if (!useMockApi || hasHandledMockCallback.current) return;
-    if (searchParams.get("mockAuth") !== "success") return;
-
-    hasHandledMockCallback.current = true;
-    const idToken = searchParams.get("idToken");
-    const accessToken = searchParams.get("accessToken");
-
-    const run = async () => {
-      if (!idToken || !accessToken) {
-        setError("Mock callback mangler idToken/accessToken");
-        return;
-      }
-
-      setError("");
-      setIsLoading(true);
-      try {
-        const loginResponse = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ idToken, accessToken }),
-        });
-
-        if (!loginResponse.ok) {
-          const loginErr = await loginResponse.json().catch(() => ({}));
-          throw new Error(loginErr?.message || "Kunne ikke starte mock-session");
-        }
-
-        await resolveProfileAndGoDashboard();
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Kunne ikke verifisere innlogging");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    void run();
-  }, [resolveProfileAndGoDashboard, searchParams, useMockApi]);
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -122,17 +67,15 @@ export default function LoginPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => handleExternalLogin("tenant")}
-                disabled={isLoading}
-                className="px-4 py-3 rounded-lg border bg-white text-gray-700 border-gray-300 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+                onClick={() => void handleExternalLogin("tenant")}
+                className="px-4 py-3 rounded-lg border bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
               >
                 Logg inn som Tenant
               </button>
               <button
                 type="button"
-                onClick={() => handleExternalLogin("sso")}
-                disabled={isLoading}
-                className="px-4 py-3 rounded-lg border bg-white text-gray-700 border-gray-300 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+                onClick={() => void handleExternalLogin("sso")}
+                className="px-4 py-3 rounded-lg border bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
               >
                 Logg inn med SSO
               </button>
@@ -147,10 +90,9 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={handleTtmLogin}
-                disabled={isLoading}
-                className="w-full bg-gray-800 hover:bg-black disabled:bg-gray-400 text-white font-medium py-3 px-4 rounded-lg transition duration-200"
+                className="w-full bg-gray-800 hover:bg-black text-white font-medium py-3 px-4 rounded-lg transition duration-200"
               >
-                {isLoading ? "Verifiserer..." : "Logg inn med TTM ID"}
+                Logg inn med TTM ID
               </button>
               <p className="text-xs text-gray-500 mt-3">
                 Simulerer auth-kjede lokalt: authorize - callback - token exchange - session.

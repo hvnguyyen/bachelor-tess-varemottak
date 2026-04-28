@@ -8,7 +8,9 @@ import {
 
 export function getOrdersAccessTokens(request: NextRequest) {
   const cookieAccessToken = request.cookies.get("accessToken")?.value;
-  const envAccessToken = process.env.TESS_ACCESS_TOKEN;
+  // Env fallback only in development — avoids masking auth failures in production.
+  const envAccessToken =
+    process.env.NODE_ENV !== "production" ? process.env.TESS_ACCESS_TOKEN : undefined;
 
   return Array.from(
     new Set([cookieAccessToken, envAccessToken].filter((value): value is string => Boolean(value)))

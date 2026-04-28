@@ -32,6 +32,7 @@ export default function GoodsReceiptPage() {
   const [showManualEntry, setShowManualEntry] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
 
   useEffect(() => {
     setHasReceiptHistory(getReceiptHistory().length > 0);
@@ -46,53 +47,37 @@ export default function GoodsReceiptPage() {
     setCustomerNumber(profile.defaultCustomerNumber ?? profile.customerNumbers[0] ?? null);
   }, []);
 
-  const handleBarcodeScanned = (barcode: string) => {
-    if (!barcode.trim()) return;
+  const addItem = (barcode: string) => {
     const trimmedBarcode = barcode.trim();
-    const now = Date.now();
+    if (!trimmedBarcode) return;
 
     if (items.some((item) => item.barcode === trimmedBarcode)) {
       setError(`Strekkode ${trimmedBarcode} er allerede registrert`);
       setTimeout(() => setError(""), 3000);
       return;
     }
-    const newItem: ReceiptItem = {
-      barcode: trimmedBarcode,
-      timestamp: now,
-    };
 
-    setItems((prev) => [newItem, ...prev]);
+    setItems((prev) => [{ barcode: trimmedBarcode, timestamp: Date.now() }, ...prev]);
+    setError("");
     setSuccess(`Strekkode registrert: ${trimmedBarcode}`);
     setTimeout(() => setSuccess(""), 2000);
-    setError("");
   };
 
-
+  const handleBarcodeScanned = (barcode: string) => {
+    addItem(barcode);
+  };
 
   const manualRegister = (code?: string) => {
-    const trimmedBarcode = (code ?? manualCode).trim();
     setError("");
     setSuccess("");
+    const trimmedBarcode = (code ?? manualCode).trim();
 
     if (!trimmedBarcode) {
       setError("Vennligst skriv inn en strekkode");
       return;
     }
 
-    if (items.some((item) => item.barcode === trimmedBarcode)) {
-      setError(`Strekkode ${trimmedBarcode} er allerede registrert`);
-      setManualCode("");
-      return;
-    }
-
-    const newItem: ReceiptItem = {
-      barcode: trimmedBarcode,
-      timestamp: Date.now(),
-    };
-
-    setItems((prev) => [newItem, ...prev]);
-    setSuccess(`Strekkode registrert: ${trimmedBarcode}`);
-    setTimeout(() => setSuccess(""), 2000);
+    addItem(trimmedBarcode);
     setManualCode("");
   };
 
@@ -106,12 +91,14 @@ export default function GoodsReceiptPage() {
   };
 
   const clearAll = () => {
-    if (confirm("Er du sikker på at du vil slette alle varer?")) {
-      setIsConfirmModalOpen(false);
-      setItems([]);
-      setSuccess("Alle varer slettet");
-      setTimeout(() => setSuccess(""), 2000);
-    }
+    setIsClearConfirmOpen(true);
+  };
+
+  const executeClearAll = () => {
+    setIsClearConfirmOpen(false);
+    setItems([]);
+    setSuccess("Alle varer slettet");
+    setTimeout(() => setSuccess(""), 2000);
   };
 
   const toggleReceiptMode = () => {
@@ -145,22 +132,12 @@ export default function GoodsReceiptPage() {
   };
 
   const closeConfirmModal = () => {
-    if (isSubmitting) {
-      return;
-    }
-
+    if (isSubmitting) return;
     setIsConfirmModalOpen(false);
   };
 
   const submitReceipt = async () => {
-    if (!customerNumber) {
-      setError("Fant ikke kundenummer for innlogget bruker");
-      return;
-    }
-
-    if (isSubmitting) {
-      return;
-    }
+    if (!customerNumber || isSubmitting) return;
 
     setIsSubmitting(true);
 
@@ -175,7 +152,8 @@ export default function GoodsReceiptPage() {
 
       if (!response.ok || !result?.ok) {
         throw new Error(
-          result && "message" in result ? result.message : "Ugyldig svar fra server");
+          result && "message" in result ? result.message : "Ugyldig svar fra server"
+        );
       }
 
       const receiptRecord: StoredReceipt = {
@@ -193,7 +171,6 @@ export default function GoodsReceiptPage() {
       setIsConfirmModalOpen(false);
       setItems([]);
       setTimeout(() => setSuccess(""), 2000);
-
     } catch (err) {
       setError(err instanceof Error ? err.message : "Kunne ikke registrere mottak");
     } finally {
@@ -321,6 +298,31 @@ export default function GoodsReceiptPage() {
         onClose={closeConfirmModal}
         onConfirm={() => void submitReceipt()}
       />
+
+      {isClearConfirmOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">Slett alle varer?</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              {items.length} strekkode{items.length !== 1 ? "r" : ""} vil bli slettet. Denne handlingen kan ikke angres.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setIsClearConfirmOpen(false)}
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 transition hover:bg-gray-50"
+              >
+                Avbryt
+              </button>
+              <button
+                onClick={executeClearAll}
+                className="rounded-lg bg-red-600 px-4 py-2 font-semibold text-white transition hover:bg-red-700"
+              >
+                Slett alle
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

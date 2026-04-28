@@ -13,6 +13,8 @@ const ALLOWED_QUERY_PARAMS = [
   "pageSize",
 ] as const;
 
+const CUSTOMER_NUMBER_RE = /^\d{1,20}$/;
+
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const customerNumber = searchParams.get("customerNumber")?.trim();
@@ -20,6 +22,13 @@ export async function GET(request: NextRequest) {
   if (!customerNumber) {
     return NextResponse.json(
       { message: "Missing required query param: customerNumber" },
+      { status: 400 }
+    );
+  }
+
+  if (!CUSTOMER_NUMBER_RE.test(customerNumber)) {
+    return NextResponse.json(
+      { message: "Ugyldig kundenummer" },
       { status: 400 }
     );
   }
@@ -35,8 +44,9 @@ export async function GET(request: NextRequest) {
 
   const upstreamPath =
     upstreamParams.size > 0
-      ? `/order/${customerNumber}?${upstreamParams.toString()}`
-      : `/order/${customerNumber}`;
+      ? `/order/${encodeURIComponent(customerNumber)}?${upstreamParams.toString()}`
+      : `/order/${encodeURIComponent(customerNumber)}`;
+
   const upstreamResponse = await fetchOrdersUpstream<GetOrdersApiResponse>(request, upstreamPath);
 
   return NextResponse.json(upstreamResponse.data, { status: upstreamResponse.status });

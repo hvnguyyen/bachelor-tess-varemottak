@@ -27,8 +27,14 @@ function normalizeWarehouses(payload: unknown): Warehouse[] {
     .filter((warehouse) => warehouse.warehouseName.toUpperCase() !== "BRUKES IKKE");
 }
 
+const CUSTOMER_NUMBER_RE = /^\d{1,20}$/;
+
 export async function GET(request: NextRequest) {
   const customerNumber = request.nextUrl.searchParams.get("customerNumber")?.trim();
+
+  if (customerNumber && !CUSTOMER_NUMBER_RE.test(customerNumber)) {
+    return NextResponse.json({ message: "Ugyldig kundenummer" }, { status: 400 });
+  }
 
   const upstreamPath = customerNumber
     ? `/warehouse/getAllCustomerWarehouse?customerNumber=${encodeURIComponent(customerNumber)}`

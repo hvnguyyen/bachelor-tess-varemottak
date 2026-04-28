@@ -1,9 +1,12 @@
-export const MOCK_ACCESS_TOKEN = "mock-access-token";
+import { randomUUID } from "crypto";
+
+// Generated once per server process — not guessable unlike a fixed string.
+export const MOCK_ACCESS_TOKEN = randomUUID();
 
 export function isMockApiMode() {
-    const serverFlag = process.env.USE_MOCK_API?.toLowerCase() === "true";
-    const publicFlag = process.env.NEXT_PUBLIC_USE_MOCK_API?.toLowerCase() === "true";
-    return serverFlag || publicFlag;
+    // Never allow mock mode in production, regardless of env vars.
+    if (process.env.NODE_ENV === "production") return false;
+    return process.env.USE_MOCK_API?.toLowerCase() === "true";
 }
 
 export function getMockMeResponse() {
