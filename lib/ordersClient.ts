@@ -1,6 +1,6 @@
 import { GetOrdersApiResponse } from "@/lib/orders";
 
-// const ORDERS_BASE_URL =
+const ORDERS_BASE_URL = process.env.TESS_ORDERS_API_BASE_URL;
 // process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "https://api.tessix.no";
 
 type GetOrdersParams = {
@@ -16,7 +16,7 @@ type GetOrdersParams = {
 };
 
 export async function fetchOrders(params: GetOrdersParams): Promise<GetOrdersApiResponse> {
-  //const path = `${ORDERS_BASE_URL}/order/${params.customerNumber}`;
+  const path = `${ORDERS_BASE_URL}/order/${params.customerNumber}`;
   const query = new URLSearchParams();
 
   query.set("customerNumber", params.customerNumber);
