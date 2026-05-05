@@ -1,7 +1,6 @@
 import { GetOrdersApiResponse } from "@/lib/orders";
 
-const ORDERS_BASE_URL = process.env.TESS_ORDERS_API_BASE_URL;
-// process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "https://api.tessix.no";
+const EXTERNAL_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "");
 
 type GetOrdersParams = {
   customerNumber: string;
@@ -15,11 +14,12 @@ type GetOrdersParams = {
   pageSize?: number;
 };
 
-export async function fetchOrders(params: GetOrdersParams): Promise<GetOrdersApiResponse> {
-  const path = `${ORDERS_BASE_URL}/order/${params.customerNumber}`;
-  const query = new URLSearchParams();
+type ErrorPayload = {
+  message?: string;
+};
 
-  query.set("customerNumber", params.customerNumber);
+function buildUpstreamQuery(params: GetOrdersParams) {
+  const query = new URLSearchParams();
 
   if (params.ordernumber) query.set("ordernumber", params.ordernumber);
   if (params.invoicenumber) query.set("invoicenumber", params.invoicenumber);
@@ -30,7 +30,28 @@ export async function fetchOrders(params: GetOrdersParams): Promise<GetOrdersApi
   if (params.page) query.set("page", params.page.toString());
   if (params.pageSize) query.set("pageSize", params.pageSize.toString());
 
-  // const url = query.toString() ? `${path}?${query.toString()}` : path;
+  return query;
+}
+
+async function readOrdersResponse(response: Response): Promise<GetOrdersApiResponse | ErrorPayload | null> {
+  return (await response.json().catch(() => null)) as GetOrdersApiResponse | ErrorPayload | null;
+}
+
+function ensureOrdersPayload(payload: GetOrdersApiResponse | ErrorPayload | null): asserts payload is GetOrdersApiResponse {
+  if (!payload || !("data" in payload) || !Array.isArray(payload.data) || !("meta" in payload)) {
+    throw new Error("Ugyldig svar fra ordre-endepunktet");
+  }
+}
+
+function getErrorMessage(payload: GetOrdersApiResponse | ErrorPayload | null, fallback: string) {
+  return payload && typeof payload === "object" && "message" in payload
+    ? payload.message || fallback
+    : fallback;
+}
+
+async function fetchOrdersViaProxy(params: GetOrdersParams) {
+  const query = buildUpstreamQuery(params);
+  query.set("customerNumber", params.customerNumber);
 
   const response = await fetch(`/api/orders?${query.toString()}`, {
     method: "GET",
@@ -38,22 +59,54 @@ export async function fetchOrders(params: GetOrdersParams): Promise<GetOrdersApi
     cache: "no-store",
   });
 
-  const result = (await response.json().catch(() => null)) as
-    | GetOrdersApiResponse
-    | { message?: string }
-    | null;
+  const result = await readOrdersResponse(response);
 
   if (!response.ok) {
-    throw new Error(
-      result && typeof result === "object" && "message" in result
-        ? result.message || "Kunne ikke hente ordredata"
-        : "Kunne ikke hente ordredata"
-    );
+    const message = getErrorMessage(result, "Kunne ikke hente ordredata");
+    const error = new Error(message) as Error & { status?: number };
+    error.status = response.status;
+    throw error;
   }
 
-  if (!result || !("data" in result) || !Array.isArray(result.data) || !("meta" in result)) {
-    throw new Error("Ugyldig svar fra ordre-endepunktet");
-  }
-
+  ensureOrdersPayload(result);
   return result;
+}
+
+async function fetchOrdersDirect(params: GetOrdersParams) {
+  if (!EXTERNAL_API_BASE_URL) {
+    throw new Error("Mangler NEXT_PUBLIC_API_BASE_URL i miljøvariabler");
+  }
+
+  const query = buildUpstreamQuery(params);
+  const path = `${EXTERNAL_API_BASE_URL}/order/${encodeURIComponent(params.customerNumber)}`;
+  const url = query.size > 0 ? `${path}?${query.toString()}` : path;
+
+  const response = await fetch(url, {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+  });
+
+  const result = await readOrdersResponse(response);
+
+  if (!response.ok) {
+    throw new Error(getErrorMessage(result, "Kunne ikke hente ordredata"));
+  }
+
+  ensureOrdersPayload(result);
+  return result;
+}
+
+export async function fetchOrders(params: GetOrdersParams): Promise<GetOrdersApiResponse> {
+  try {
+    return await fetchOrdersViaProxy(params);
+  } catch (error) {
+    const status = typeof error === "object" && error && "status" in error ? Number(error.status) : undefined;
+
+    if (status !== 401 && status !== 403) {
+      throw error;
+    }
+
+    return fetchOrdersDirect(params);
+  }
 }
