@@ -2,26 +2,19 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { clearStoredUserProfile, getStoredUserProfile } from "@/lib/userProfile";
+import { clearStoredUserProfile } from "@/lib/userProfile";
+import { useRequiredUserProfile } from "@/lib/useRequiredUserProfile";
 import ActionCard from "./components/ActionCard";
 
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { profile, isReady } = useRequiredUserProfile();
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [employeeName, setEmployeeName] = useState("TESS-bruker");
-  const [employeeId, setEmployeeId] = useState("Ukjent ansatt-ID");
 
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const profile = getStoredUserProfile();
-
-    setEmployeeName(profile?.name || "TESS-bruker");
-    setEmployeeId(profile?.employeeId || "Ukjent ansatt-ID");
-  }, []);
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
@@ -61,6 +54,13 @@ export default function DashboardPage() {
       router.push("/");
     }
   };
+
+  if (!isReady || !profile) {
+    return null;
+  }
+
+  const employeeName = profile.name || "TESS-bruker";
+  const employeeId = profile.employeeId || "Ukjent ansatt-ID";
 
   return (
     <main className="flex min-h-screen flex-col bg-gradient-to-br from-blue-50 to-indigo-100">

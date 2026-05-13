@@ -2,9 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getStoredUserProfile } from "@/lib/userProfile";
 import { addReceiptToHistory, getReceiptHistory } from "@/lib/receiptHistory";
 import { CreateReceiptResponse, ReceiptItem, StoredReceipt } from "@/lib/receipts";
+import { useRequiredUserProfile } from "@/lib/useRequiredUserProfile";
 
 import Link from "next/link";
 import Scanner from "./components/Scanner";
@@ -15,6 +15,7 @@ import ReceiptConfirmationModal from "./components/ReceiptConfirmationModal";
 
 export default function GoodsReceiptPage() {
   const router = useRouter();
+  const { profile, isReady } = useRequiredUserProfile();
 
   const [hasReceiptHistory, setHasReceiptHistory] = useState(false);
 
@@ -35,16 +36,17 @@ export default function GoodsReceiptPage() {
 
   useEffect(() => {
     setHasReceiptHistory(getReceiptHistory().length > 0);
+  }, []);
 
-    const profile = getStoredUserProfile();
+  useEffect(() => {
     if (!profile) {
-      setError("Fant ikke bruker. Logg inn på nytt");
       return;
     }
+
     setEmployeeId(profile.employeeId);
     setAvailableCustomerNumbers(profile.customerNumbers);
     setCustomerNumber(profile.defaultCustomerNumber ?? profile.customerNumbers[0] ?? null);
-  }, []);
+  }, [profile]);
 
   const handleBarcodeScanned = (barcode: string) => {
     if (!barcode.trim()) return;
@@ -212,6 +214,10 @@ export default function GoodsReceiptPage() {
     await new Promise((resolve) => setTimeout(resolve, 150));
     router.push("/receipts");
   };
+
+  if (!isReady || !profile) {
+    return null;
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">

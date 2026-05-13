@@ -49,9 +49,7 @@ export default function LoginPage() {
 
     const base = externalApiBase.replace(/\/+$/, "");
 
-    // const returnTo = `${window.location.origin}/auth/complete`;
-
-    const returnTo = "https://bachelor-tess-varemottak.onrender.com/auth/complete";
+    const returnTo = `${window.location.origin}/auth/complete`;
     window.location.href = `${base}/auth/${externalMode}?returnTo=${encodeURIComponent(returnTo)}`;
   };
 

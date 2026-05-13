@@ -7,12 +7,14 @@ import {
   parseReceiptHistory,
   subscribeReceiptHistory,
 } from "@/lib/receiptHistory";
+import { useRequiredUserProfile } from "@/lib/useRequiredUserProfile";
 
 function formatDateTime(value: number) {
   return new Date(value).toLocaleString("no-NO");
 }
 
 export default function ReceiptHistoryPage() {
+  const { profile, isReady } = useRequiredUserProfile();
   const [expandedReceiptId, setExpandedReceiptId] = useState<string | null>(null);
   const historySnapshot = useSyncExternalStore(
     subscribeReceiptHistory,
@@ -25,6 +27,10 @@ export default function ReceiptHistoryPage() {
     () => [...receipts].sort((a, b) => b.submittedAt - a.submittedAt),
     [receipts]
   );
+
+  if (!isReady || !profile) {
+    return null;
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">

@@ -33,8 +33,10 @@ function buildUpstreamQuery(params: GetOrdersParams) {
   return query;
 }
 
-async function readOrdersResponse(response: Response): Promise<GetOrdersApiResponse | ErrorPayload | null> {
-  return (await response.json().catch(() => null)) as GetOrdersApiResponse | ErrorPayload | null;
+function getErrorMessage(payload: GetOrdersApiResponse | ErrorPayload | null, fallback: string) {
+  return payload && typeof payload === "object" && "message" in payload
+    ? payload.message || fallback
+    : fallback;
 }
 
 function ensureOrdersPayload(payload: GetOrdersApiResponse | ErrorPayload | null): asserts payload is GetOrdersApiResponse {
@@ -43,36 +45,7 @@ function ensureOrdersPayload(payload: GetOrdersApiResponse | ErrorPayload | null
   }
 }
 
-function getErrorMessage(payload: GetOrdersApiResponse | ErrorPayload | null, fallback: string) {
-  return payload && typeof payload === "object" && "message" in payload
-    ? payload.message || fallback
-    : fallback;
-}
-
-async function fetchOrdersViaProxy(params: GetOrdersParams) {
-  const query = buildUpstreamQuery(params);
-  query.set("customerNumber", params.customerNumber);
-
-  const response = await fetch(`/api/orders?${query.toString()}`, {
-    method: "GET",
-    credentials: "include",
-    cache: "no-store",
-  });
-
-  const result = await readOrdersResponse(response);
-
-  if (!response.ok) {
-    const message = getErrorMessage(result, "Kunne ikke hente ordredata");
-    const error = new Error(message) as Error & { status?: number };
-    error.status = response.status;
-    throw error;
-  }
-
-  ensureOrdersPayload(result);
-  return result;
-}
-
-async function fetchOrdersDirect(params: GetOrdersParams) {
+export async function fetchOrders(params: GetOrdersParams): Promise<GetOrdersApiResponse> {
   if (!EXTERNAL_API_BASE_URL) {
     throw new Error("Mangler NEXT_PUBLIC_API_BASE_URL i miljøvariabler");
   }
@@ -87,7 +60,10 @@ async function fetchOrdersDirect(params: GetOrdersParams) {
     cache: "no-store",
   });
 
-  const result = await readOrdersResponse(response);
+  const result = (await response.json().catch(() => null)) as
+    | GetOrdersApiResponse
+    | ErrorPayload
+    | null;
 
   if (!response.ok) {
     throw new Error(getErrorMessage(result, "Kunne ikke hente ordredata"));
@@ -95,18 +71,4 @@ async function fetchOrdersDirect(params: GetOrdersParams) {
 
   ensureOrdersPayload(result);
   return result;
-}
-
-export async function fetchOrders(params: GetOrdersParams): Promise<GetOrdersApiResponse> {
-  try {
-    return await fetchOrdersViaProxy(params);
-  } catch (error) {
-    const status = typeof error === "object" && error && "status" in error ? Number(error.status) : undefined;
-
-    if (status !== 401 && status !== 403) {
-      throw error;
-    }
-
-    return fetchOrdersDirect(params);
-  }
 }

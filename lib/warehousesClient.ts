@@ -49,36 +49,6 @@ function getErrorMessage(payload: GetWarehousesApiResponse | ErrorPayload | null
     : fallback;
 }
 
-async function fetchWarehousesViaProxy(customerNumber?: string) {
-  const query = buildQuery(customerNumber);
-
-  const response = await fetch(
-    query.size > 0 ? `/api/warehouses?${query.toString()}` : "/api/warehouses",
-    {
-      method: "GET",
-      credentials: "include",
-      cache: "no-store",
-    }
-  );
-
-  const result = (await response.json().catch(() => null)) as
-    | GetWarehousesApiResponse
-    | ErrorPayload
-    | null;
-
-  if (!response.ok) {
-    const error = new Error(getErrorMessage(result, "Kunne ikke hente lagre")) as Error & { status?: number };
-    error.status = response.status;
-    throw error;
-  }
-
-  if (!result || !("data" in result) || !Array.isArray(result.data)) {
-    throw new Error("Ugyldig svar fra warehouse-endepunktet");
-  }
-
-  return result;
-}
-
 async function fetchWarehousesDirect(customerNumber?: string) {
   if (!EXTERNAL_API_BASE_URL) {
     throw new Error("Mangler NEXT_PUBLIC_API_BASE_URL i miljøvariabler");
@@ -107,15 +77,5 @@ async function fetchWarehousesDirect(customerNumber?: string) {
 }
 
 export async function fetchWarehouses(customerNumber?: string): Promise<GetWarehousesApiResponse> {
-  try {
-    return await fetchWarehousesViaProxy(customerNumber);
-  } catch (error) {
-    const status = typeof error === "object" && error && "status" in error ? Number(error.status) : undefined;
-
-    if (status !== 401 && status !== 403) {
-      throw error;
-    }
-
-    return fetchWarehousesDirect(customerNumber);
-  }
+  return fetchWarehousesDirect(customerNumber);
 }

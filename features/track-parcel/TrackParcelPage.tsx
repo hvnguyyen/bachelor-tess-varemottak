@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchOrders } from "@/lib/ordersClient";
 import { mapOrderToTrackingOrder, TrackingOrder } from "@/lib/tracking";
-import { getStoredUserProfile } from "@/lib/userProfile";
 import { fetchWarehouses } from "@/lib/warehousesClient";
+import { useRequiredUserProfile } from "@/lib/useRequiredUserProfile";
 
 const PAGE_SIZE_OPTIONS = [25, 50, 75, 100] as const;
 
@@ -37,6 +37,7 @@ function sortNumberValues(values: number[]) {
 }
 
 export default function TrackParcelPage() {
+  const { profile, isReady } = useRequiredUserProfile();
   const [customerNumber, setCustomerNumber] = useState("");
   const [warehouses, setWarehouses] = useState<string[]>([]);
   const [selectedWarehouse, setSelectedWarehouse] = useState<string | null>(null);
@@ -59,17 +60,20 @@ export default function TrackParcelPage() {
   const hasActiveFilters = Boolean(searchTerm.trim() || selectedWarehouse || selectedStatusCode);
 
   useEffect(() => {
-    const profile = getStoredUserProfile();
-    const numbers = profile?.customerNumbers ?? [];
+    if (!profile) {
+      return;
+    }
 
-    setCustomerNumber(profile?.defaultCustomerNumber ?? numbers[0] ?? "");
-    setSelectedWarehouse(profile?.defaultWarehouseName ?? null);
-  }, []);
+    const numbers = profile.customerNumbers ?? [];
+
+    setCustomerNumber(profile.defaultCustomerNumber ?? numbers[0] ?? "");
+    setSelectedWarehouse(profile.defaultWarehouseName ?? null);
+  }, [profile]);
 
   const loadWarehouses = useCallback(async () => {
     try {
       setWarehousesLoading(true);
-      const result = await fetchWarehouses();
+      const result = await fetchWarehouses(customerNumber || undefined);
       const names = result.data
         .map((warehouse) => warehouse.warehouseName)
         .filter(Boolean)
@@ -81,7 +85,7 @@ export default function TrackParcelPage() {
     } finally {
       setWarehousesLoading(false);
     }
-  }, []);
+  }, [customerNumber]);
 
   useEffect(() => {
     void loadWarehouses();
@@ -206,6 +210,10 @@ export default function TrackParcelPage() {
     setSelectedStatusCode(null);
     setExpandedOrderId(null);
   };
+
+  if (!isReady || !profile) {
+    return null;
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
