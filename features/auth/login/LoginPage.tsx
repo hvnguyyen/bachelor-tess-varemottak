@@ -21,16 +21,9 @@ export default function LoginPage() {
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
 
     const base = externalApiBase.replace(/\/+$/, "");
-    const returnTo = "https://bachelor-tess-varemottak.onrender.com/auth/complete";
-    // const returnTo = `${window.location.origin}/auth/complete`;
-    const redirectUrl = `${base}/auth/${externalMode}?returnTo=${encodeURIComponent(returnTo)}`;
 
-    console.log("[auth redirect]", {
-      mode: externalMode,
-      origin: window.location.origin,
-      returnTo,
-      redirectUrl,
-    });
+    const returnTo = `${window.location.origin}/auth/complete`;
+    const redirectUrl = `${base}/auth/${externalMode}?returnTo=${encodeURIComponent(returnTo)}`;
 
     window.location.href = redirectUrl;
   };

@@ -1,20 +1,21 @@
 import { GetWarehousesApiResponse } from "@/lib/warehouses";
 
 export async function fetchWarehouses(customerNumber?: string): Promise<GetWarehousesApiResponse> {
-  const query = new URLSearchParams();
+  const externalApiBase = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "");
 
-  if (customerNumber) {
-    query.set("customerNumber", customerNumber);
+  if (!externalApiBase) {
+    throw new Error("Mangler NEXT_PUBLIC_API_BASE_URL i miljøvariabler");
   }
 
-  const response = await fetch(
-    query.size > 0 ? `/api/warehouses?${query.toString()}` : "/api/warehouses",
-    {
+  const url = customerNumber
+    ? `${externalApiBase}/warehouse/getAllCustomerWarehouse?customerNumber=${encodeURIComponent(customerNumber)}`
+    : `${externalApiBase}/warehouse`;
+
+  const response = await fetch(url, {
       method: "GET",
       credentials: "include",
       cache: "no-store",
-    }
-  );
+    });
 
   const result = (await response.json().catch(() => null)) as
     | GetWarehousesApiResponse
@@ -29,9 +30,16 @@ export async function fetchWarehouses(customerNumber?: string): Promise<GetWareh
     );
   }
 
-  if (!result || !("data" in result) || !Array.isArray(result.data)) {
+  const normalizedData =
+    result && typeof result === "object" && "data" in result && Array.isArray(result.data)
+      ? result.data
+      : Array.isArray(result)
+        ? result
+        : null;
+
+  if (!normalizedData) {
     throw new Error("Ugyldig svar fra warehouse-endepunktet");
   }
 
-  return result;
+  return { data: normalizedData };
 }

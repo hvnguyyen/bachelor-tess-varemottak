@@ -13,9 +13,13 @@ type GetOrdersParams = {
 };
 
 export async function fetchOrders(params: GetOrdersParams): Promise<GetOrdersApiResponse> {
-  const query = new URLSearchParams();
+  const externalApiBase = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "");
 
-  query.set("customerNumber", params.customerNumber);
+  if (!externalApiBase) {
+    throw new Error("Mangler NEXT_PUBLIC_API_BASE_URL i miljøvariabler");
+  }
+
+  const query = new URLSearchParams();
 
   if (params.ordernumber) query.set("ordernumber", params.ordernumber);
   if (params.invoicenumber) query.set("invoicenumber", params.invoicenumber);
@@ -26,11 +30,14 @@ export async function fetchOrders(params: GetOrdersParams): Promise<GetOrdersApi
   if (params.page) query.set("page", params.page.toString());
   if (params.pageSize) query.set("pageSize", params.pageSize.toString());
 
-  const response = await fetch(`/api/orders?${query.toString()}`, {
+  const response = await fetch(
+    `${externalApiBase}/order/${encodeURIComponent(params.customerNumber)}?${query.toString()}`,
+    {
     method: "GET",
     credentials: "include",
     cache: "no-store",
-  });
+    }
+  );
 
   const result = (await response.json().catch(() => null)) as
     | GetOrdersApiResponse
