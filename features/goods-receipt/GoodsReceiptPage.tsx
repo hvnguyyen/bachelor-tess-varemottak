@@ -1,9 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { addReceiptToHistory, getReceiptHistory } from "@/lib/receiptHistory";
-import { CreateReceiptResponse, ReceiptItem, StoredReceipt } from "@/lib/receipts";
+import { useCallback, useEffect, useState } from "react";
+import {
+  CreateReceiptResponse,
+  GetReceiptsResponse,
+  ReceiptItem,
+} from "@/lib/receipts";
 import { useRequiredUserProfile } from "@/lib/useRequiredUserProfile";
 
 import Link from "next/link";
@@ -35,8 +38,23 @@ export default function GoodsReceiptPage() {
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
 
-  useEffect(() => {
-    setHasReceiptHistory(getReceiptHistory().length > 0);
+  const loadHasReceiptHistory = useCallback(async (nextEmployeeId: string) => {
+    try {
+      const query = new URLSearchParams({ employeeId: nextEmployeeId });
+      const response = await fetch(`/api/receipts?${query.toString()}`, {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        setHasReceiptHistory(false);
+        return;
+      }
+
+      const result = (await response.json().catch(() => null)) as GetReceiptsResponse | null;
+      setHasReceiptHistory(Boolean(result?.ok && result.receipts.length > 0));
+    } catch {
+      setHasReceiptHistory(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -48,6 +66,15 @@ export default function GoodsReceiptPage() {
     setAvailableCustomerNumbers(profile.customerNumbers);
     setCustomerNumber(profile.defaultCustomerNumber ?? profile.customerNumbers[0] ?? null);
   }, [profile]);
+
+  useEffect(() => {
+    if (!profile?.employeeId) {
+      setHasReceiptHistory(false);
+      return;
+    }
+
+    void loadHasReceiptHistory(profile.employeeId);
+  }, [loadHasReceiptHistory, profile?.employeeId]);
 
   const addItem = (barcode: string) => {
     const trimmedBarcode = barcode.trim();
@@ -106,7 +133,7 @@ export default function GoodsReceiptPage() {
   const toggleReceiptMode = () => {
     setReceiptModeOpen((prev) => {
       const next = !prev;
-      setScannerActive(next);
+      setScannerActive(false);
       setShowManualEntry(next);
       setError("");
       setSuccess("");
@@ -147,7 +174,7 @@ export default function GoodsReceiptPage() {
       const response = await fetch("/api/receipts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items }),
+        body: JSON.stringify({ employeeId, customerNumber, items }),
       });
 
       const result = (await response.json().catch(() => null)) as CreateReceiptResponse | null;
@@ -158,16 +185,6 @@ export default function GoodsReceiptPage() {
         );
       }
 
-      const receiptRecord: StoredReceipt = {
-        receiptId: result.receiptId || `temp-receipt-${Date.now()}`,
-        submittedAt: Date.now(),
-        itemCount: items.length,
-        customerNumber,
-        employeeId,
-        items,
-      };
-
-      addReceiptToHistory(receiptRecord);
       setHasReceiptHistory(true);
       setSuccess(`Varemottak registrert med ${items.length} kolli`);
       setIsConfirmModalOpen(false);

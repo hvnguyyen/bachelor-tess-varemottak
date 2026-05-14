@@ -1,4 +1,5 @@
 export const USER_PROFILE_STORAGE_KEY = "user-profile";
+export const USER_PROFILE_STORAGE_EVENT = "user-profile-change";
 
 type ApiUser = {
     name?: string;
@@ -101,6 +102,10 @@ export function saveUserProfile(profile: UserProfile) {
 
     // Midlertidig kompatibilitet med eksisterende kode.
     localStorage.setItem("employeeId", String(profile.employeeId));
+
+    if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event(USER_PROFILE_STORAGE_EVENT));
+    }
 }
 
 export function getStoredUserProfile(): UserProfile | null {
@@ -174,4 +179,8 @@ export function getStoredUserProfile(): UserProfile | null {
 export function clearStoredUserProfile() {
     localStorage.removeItem(USER_PROFILE_STORAGE_KEY);
     localStorage.removeItem("employeeId");
+
+    if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event(USER_PROFILE_STORAGE_EVENT));
+    }
 }

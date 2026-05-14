@@ -4,6 +4,8 @@ export type ReceiptItem = {
 };
 
 export type CreateReceiptRequest = {
+  employeeId: string;
+  customerNumber: string;
   items: ReceiptItem[];
 };
 
@@ -19,6 +21,18 @@ export type CreateReceiptErrorResponse = {
 };
 
 export type CreateReceiptResponse = CreateReceiptSuccessResponse | CreateReceiptErrorResponse;
+
+export type GetReceiptsSuccessResponse = {
+  ok: true;
+  receipts: StoredReceipt[];
+};
+
+export type GetReceiptsErrorResponse = {
+  ok: false;
+  message: string;
+};
+
+export type GetReceiptsResponse = GetReceiptsSuccessResponse | GetReceiptsErrorResponse;
 
 export type StoredReceipt = {
   receiptId: string;
@@ -45,7 +59,14 @@ export function isCreateReceiptRequest(value: unknown): value is CreateReceiptRe
   if (!value || typeof value !== "object") return false;
 
   const candidate = value as Partial<CreateReceiptRequest>;
-  return Array.isArray(candidate.items) && candidate.items.every(isReceiptItem);
+  return (
+    typeof candidate.employeeId === "string" &&
+    candidate.employeeId.trim().length > 0 &&
+    typeof candidate.customerNumber === "string" &&
+    candidate.customerNumber.trim().length > 0 &&
+    Array.isArray(candidate.items) &&
+    candidate.items.every(isReceiptItem)
+  );
 }
 
 export function isStoredReceipt(value: unknown): value is StoredReceipt {

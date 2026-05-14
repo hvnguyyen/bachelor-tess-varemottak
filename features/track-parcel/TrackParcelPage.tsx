@@ -74,10 +74,13 @@ export default function TrackParcelPage() {
     try {
       setWarehousesLoading(true);
       const result = await fetchWarehouses(customerNumber || undefined);
-      const names = result.data
-        .map((warehouse) => warehouse.warehouseName)
-        .filter(Boolean)
-        .sort((a, b) => a.localeCompare(b, "no"));
+      const names = Array.from(
+        new Set(
+          result.data
+            .map((warehouse) => warehouse.warehouseName)
+            .filter(Boolean),
+        ),
+      ).sort((a, b) => a.localeCompare(b, "no"));
 
       setWarehouses(names);
     } catch {

@@ -1,0 +1,15 @@
+[
+  {
+    "receiptId": "receipt-1778764353150-6nx2yw",
+    "submittedAt": 1778764353150,
+    "itemCount": 1,
+    "customerNumber": "169999",
+    "employeeId": "676665@stud.hvl.no",
+    "items": [
+      {
+        "barcode": "13546254",
+        "timestamp": 1778764350582
+      }
+    ]
+  }
+]

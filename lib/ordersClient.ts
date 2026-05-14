@@ -1,10 +1,7 @@
 import { GetOrdersApiResponse } from "@/lib/orders";
 
-<<<<<<< HEAD
-=======
 const EXTERNAL_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "");
 
->>>>>>> fase3-sporing
 type GetOrdersParams = {
   customerNumber: string;
   ordernumber?: string;
@@ -17,21 +14,11 @@ type GetOrdersParams = {
   pageSize?: number;
 };
 
-<<<<<<< HEAD
-export async function fetchOrders(params: GetOrdersParams): Promise<GetOrdersApiResponse> {
-  const externalApiBase = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "");
-
-  if (!externalApiBase) {
-    throw new Error("Mangler NEXT_PUBLIC_API_BASE_URL i miljøvariabler");
-  }
-
-=======
 type ErrorPayload = {
   message?: string;
 };
 
 function buildUpstreamQuery(params: GetOrdersParams) {
->>>>>>> fase3-sporing
   const query = new URLSearchParams();
 
   if (params.ordernumber) query.set("ordernumber", params.ordernumber);
@@ -43,11 +30,6 @@ function buildUpstreamQuery(params: GetOrdersParams) {
   if (params.page) query.set("page", params.page.toString());
   if (params.pageSize) query.set("pageSize", params.pageSize.toString());
 
-<<<<<<< HEAD
-  const response = await fetch(
-    `${externalApiBase}/order/${encodeURIComponent(params.customerNumber)}?${query.toString()}`,
-    {
-=======
   return query;
 }
 
@@ -73,12 +55,10 @@ export async function fetchOrders(params: GetOrdersParams): Promise<GetOrdersApi
   const url = query.size > 0 ? `${path}?${query.toString()}` : path;
 
   const response = await fetch(url, {
->>>>>>> fase3-sporing
     method: "GET",
     credentials: "include",
     cache: "no-store",
-    }
-  );
+  });
 
   const result = (await response.json().catch(() => null)) as
     | GetOrdersApiResponse

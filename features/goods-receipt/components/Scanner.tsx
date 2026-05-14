@@ -109,7 +109,11 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
           return true;
         } catch (err: any) {
           const msg = err && err.message ? String(err.message) : "";
-          if (msg.includes("play() request was interrupted") || msg.includes("The play() request was interrupted")) {
+          if (
+            msg.includes("play() request was interrupted") ||
+            msg.includes("The play() request was interrupted") ||
+            msg.includes("media was removed from the document")
+          ) {
             console.warn("play() interrupted during scanner start, will retry once", err);
             return false;
           }
@@ -222,7 +226,8 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
           lower.includes("play() request was interrupted") ||
           lower.includes("cannot stop") ||
           lower.includes("is not running") ||
-          lower.includes("is not running or paused")
+          lower.includes("is not running or paused") ||
+          lower.includes("media was removed from the document")
         ) {
           console.warn("Ignored transient scanner stop error:", msg);
           try { await scanner.clear(); } catch (e) { /* ignore */ }
@@ -270,7 +275,13 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
     // Global runtime error suppression for specific benign scanner errors
     const onWindowError = (ev: ErrorEvent) => {
       const msg = ev && (ev.message || "");
-      if (msg.includes("removeChild") || msg.includes("not a child") || msg.includes("The play() request was interrupted") || msg.includes("play() request was interrupted")) {
+      if (
+        msg.includes("removeChild") ||
+        msg.includes("not a child") ||
+        msg.includes("The play() request was interrupted") ||
+        msg.includes("play() request was interrupted") ||
+        msg.includes("media was removed from the document")
+      ) {
         console.warn("Suppressed runtime error (scanner related):", msg);
         ev.preventDefault();
       }
@@ -278,7 +289,12 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
 
     const onUnhandledRejection = (ev: PromiseRejectionEvent) => {
       const reason = ev && (ev.reason && (ev.reason.message || String(ev.reason))) || "";
-      if (reason.includes("The play() request was interrupted") || reason.includes("removeChild") || reason.includes("not a child")) {
+      if (
+        reason.includes("The play() request was interrupted") ||
+        reason.includes("removeChild") ||
+        reason.includes("not a child") ||
+        reason.includes("media was removed from the document")
+      ) {
         console.warn("Suppressed unhandled rejection (scanner related):", reason);
         ev.preventDefault();
       }
@@ -387,8 +403,14 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
       </div>
 
       {scannerActive ? (
-        <div ref={containerRef} id="qr-scanner" className="w-full h-96 bg-gray-700 rounded-lg overflow-hidden relative flex items-center justify-center">
-          {isScannerRunning ? <span className="text-gray-200">Skanner kjører...</span> : <span className="text-gray-300">Kamera ikke aktivt</span>}
+        <div className="relative h-96 w-full overflow-hidden rounded-lg bg-gray-700">
+          <div ref={containerRef} id="qr-scanner" className="h-full w-full" />
+
+          <div className="pointer-events-none absolute inset-x-0 top-4 flex justify-center">
+            <span className="rounded-full bg-black/45 px-3 py-1 text-sm text-gray-100 backdrop-blur-sm">
+              {isScannerRunning ? "Skanner kjører..." : "Starter kamera..."}
+            </span>
+          </div>
 
           {/* Centered scan frame overlay */}
           <div className="scan-frame pointer-events-none">

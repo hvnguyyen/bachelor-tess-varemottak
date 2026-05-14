@@ -1,9 +1,5 @@
 import { GetWarehousesApiResponse } from "@/lib/warehouses";
 
-<<<<<<< HEAD
-export async function fetchWarehouses(customerNumber?: string): Promise<GetWarehousesApiResponse> {
-  const externalApiBase = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "");
-=======
 const EXTERNAL_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "");
 
 type ErrorPayload = {
@@ -12,26 +8,13 @@ type ErrorPayload = {
 
 function buildQuery(customerNumber?: string) {
   const query = new URLSearchParams();
->>>>>>> fase3-sporing
 
-  if (!externalApiBase) {
-    throw new Error("Mangler NEXT_PUBLIC_API_BASE_URL i miljøvariabler");
+  if (customerNumber) {
+    query.set("customerNumber", customerNumber);
   }
 
-<<<<<<< HEAD
-  const url = customerNumber
-    ? `${externalApiBase}/warehouse/getAllCustomerWarehouse?customerNumber=${encodeURIComponent(customerNumber)}`
-    : `${externalApiBase}/warehouse`;
-
-  const response = await fetch(url, {
-      method: "GET",
-      credentials: "include",
-      cache: "no-store",
-    });
-=======
   return query;
 }
->>>>>>> fase3-sporing
 
 function normalizeWarehouses(payload: unknown): GetWarehousesApiResponse {
   const source =
@@ -90,24 +73,9 @@ async function fetchWarehousesDirect(customerNumber?: string) {
     throw new Error(getErrorMessage(payload, "Kunne ikke hente lagre"));
   }
 
-<<<<<<< HEAD
-  const normalizedData =
-    result && typeof result === "object" && "data" in result && Array.isArray(result.data)
-      ? result.data
-      : Array.isArray(result)
-        ? result
-        : null;
-
-  if (!normalizedData) {
-    throw new Error("Ugyldig svar fra warehouse-endepunktet");
-  }
-
-  return { data: normalizedData };
-=======
   return normalizeWarehouses(result);
 }
 
 export async function fetchWarehouses(customerNumber?: string): Promise<GetWarehousesApiResponse> {
   return fetchWarehousesDirect(customerNumber);
->>>>>>> fase3-sporing
 }

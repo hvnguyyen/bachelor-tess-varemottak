@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  getReceiptHistorySnapshot,
-  parseReceiptHistory,
-  subscribeReceiptHistory,
-} from "@/lib/receiptHistory";
+  GetReceiptsResponse,
+  StoredReceipt,
+} from "@/lib/receipts";
 import { useRequiredUserProfile } from "@/lib/useRequiredUserProfile";
 
 function formatDateTime(value: number) {
@@ -16,12 +15,57 @@ function formatDateTime(value: number) {
 export default function ReceiptHistoryPage() {
   const { profile, isReady } = useRequiredUserProfile();
   const [expandedReceiptId, setExpandedReceiptId] = useState<string | null>(null);
-  const historySnapshot = useSyncExternalStore(
-    subscribeReceiptHistory,
-    getReceiptHistorySnapshot,
-    () => ""
-  );
-  const receipts = useMemo(() => parseReceiptHistory(historySnapshot), [historySnapshot]);
+  const [receipts, setReceipts] = useState<StoredReceipt[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!profile?.employeeId) {
+      setReceipts([]);
+      setIsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadReceipts = async () => {
+      try {
+        setIsLoading(true);
+        setError("");
+
+        const query = new URLSearchParams({ employeeId: profile.employeeId });
+        const response = await fetch(`/api/receipts?${query.toString()}`, {
+          cache: "no-store",
+        });
+        const result = (await response.json().catch(() => null)) as GetReceiptsResponse | null;
+
+        if (!response.ok || !result?.ok) {
+          throw new Error(
+            result && "message" in result ? result.message : "Kunne ikke hente varemottak"
+          );
+        }
+
+        if (!cancelled) {
+          setReceipts(result.receipts);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setReceipts([]);
+          setError(err instanceof Error ? err.message : "Kunne ikke hente varemottak");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadReceipts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.employeeId]);
 
   const sortedReceipts = useMemo(
     () => [...receipts].sort((a, b) => b.submittedAt - a.submittedAt),
@@ -39,7 +83,7 @@ export default function ReceiptHistoryPage() {
           <div>
             <h1 className="text-3xl font-bold text-gray-800">Siste varemottak</h1>
             <p className="mt-1 text-sm text-gray-600">
-              Viser lokalt lagrede mock-mottak på denne enheten.
+              Viser lagrede mottak for innlogget bruker.
             </p>
           </div>
           <Link
@@ -50,7 +94,15 @@ export default function ReceiptHistoryPage() {
           </Link>
         </div>
 
-        {sortedReceipts.length === 0 ? (
+        {isLoading ? (
+          <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-200 p-8 text-center text-gray-600">
+            Henter lagrede varemottak...
+          </div>
+        ) : error ? (
+          <div className="bg-white rounded-2xl shadow-sm ring-1 ring-red-200 p-8 text-center text-red-700">
+            {error}
+          </div>
+        ) : sortedReceipts.length === 0 ? (
           <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-200 p-8 text-center text-gray-600">
             Ingen varemottak er lagret ennå.
           </div>
