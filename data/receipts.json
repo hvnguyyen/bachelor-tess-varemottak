@@ -1,5 +1,43 @@
 [
   {
+    "receiptId": "receipt-1778779814430-rz9zan",
+    "submittedAt": 1778779814430,
+    "itemCount": 3,
+    "customerNumber": "169999",
+    "employeeId": "676665@stud.hvl.no",
+    "items": [
+      {
+        "barcode": "8756465",
+        "timestamp": 1778779793877
+      },
+      {
+        "barcode": "7865458",
+        "timestamp": 1778779791810
+      },
+      {
+        "barcode": "7645367",
+        "timestamp": 1778779789560
+      }
+    ]
+  },
+  {
+    "receiptId": "receipt-1778773860128-71md73",
+    "submittedAt": 1778773860128,
+    "itemCount": 2,
+    "customerNumber": "169999",
+    "employeeId": "676665@stud.hvl.no",
+    "items": [
+      {
+        "barcode": "273876425",
+        "timestamp": 1778773857776
+      },
+      {
+        "barcode": "235675645",
+        "timestamp": 1778773855794
+      }
+    ]
+  },
+  {
     "receiptId": "receipt-1778764353150-6nx2yw",
     "submittedAt": 1778764353150,
     "itemCount": 1,
