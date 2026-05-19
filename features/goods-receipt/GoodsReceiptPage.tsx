@@ -6,6 +6,7 @@ import {
   CreateReceiptResponse,
   GetReceiptsResponse,
   ReceiptItem,
+  isReceiptItem,
 } from "@/lib/receipts";
 import { useRequiredUserProfile } from "@/lib/useRequiredUserProfile";
 
@@ -15,6 +16,39 @@ import ManualEntry from "./components/ManualEntry";
 import ItemsList from "./components/ItemsList";
 import OrdersOverview from "./components/OrdersOverview";
 import ReceiptConfirmationModal from "./components/ReceiptConfirmationModal";
+
+const DRAFT_STORAGE_PREFIX = "goods-receipt-draft";
+
+function getDraftStorageKey(employeeId: string, customerNumber: string) {
+  return `${DRAFT_STORAGE_PREFIX}:${employeeId}:${customerNumber}`;
+}
+
+function loadDraftItems(storageKey: string): ReceiptItem[] {
+  try {
+    const raw = window.localStorage.getItem(storageKey);
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.filter(isReceiptItem);
+  } catch {
+    return [];
+  }
+}
+
+function saveDraftItems(storageKey: string, nextItems: ReceiptItem[]) {
+  try {
+    if (nextItems.length === 0) {
+      window.localStorage.removeItem(storageKey);
+      return;
+    }
+
+    window.localStorage.setItem(storageKey, JSON.stringify(nextItems));
+  } catch {
+    // localStorage can be unavailable in restricted browser contexts.
+  }
+}
 
 export default function GoodsReceiptPage() {
   const router = useRouter();
@@ -30,6 +64,8 @@ export default function GoodsReceiptPage() {
   const [success, setSuccess] = useState("");
 
   const [items, setItems] = useState<ReceiptItem[]>([]);
+  const [draftStorageKey, setDraftStorageKey] = useState<string | null>(null);
+  const [hasLoadedDraft, setHasLoadedDraft] = useState(false);
   const [manualCode, setManualCode] = useState("");
   const [receiptModeOpen, setReceiptModeOpen] = useState(false);
   const [scannerActive, setScannerActive] = useState(false);
@@ -75,6 +111,35 @@ export default function GoodsReceiptPage() {
 
     void loadHasReceiptHistory(profile.employeeId);
   }, [loadHasReceiptHistory, profile?.employeeId]);
+
+  useEffect(() => {
+    if (!profile?.employeeId || !customerNumber) {
+      setDraftStorageKey(null);
+      setHasLoadedDraft(false);
+      return;
+    }
+
+    const nextStorageKey = getDraftStorageKey(profile.employeeId, customerNumber);
+    const draftItems = loadDraftItems(nextStorageKey);
+
+    setDraftStorageKey(nextStorageKey);
+    setItems(draftItems);
+    setHasLoadedDraft(true);
+
+    if (draftItems.length > 0) {
+      setReceiptModeOpen(true);
+      setScannerActive(true);
+      setShowManualEntry(true);
+    }
+  }, [customerNumber, profile?.employeeId]);
+
+  useEffect(() => {
+    if (!draftStorageKey || !hasLoadedDraft) {
+      return;
+    }
+
+    saveDraftItems(draftStorageKey, items);
+  }, [draftStorageKey, hasLoadedDraft, items]);
 
   const addItem = (barcode: string) => {
     const trimmedBarcode = barcode.trim();
@@ -133,7 +198,7 @@ export default function GoodsReceiptPage() {
   const toggleReceiptMode = () => {
     setReceiptModeOpen((prev) => {
       const next = !prev;
-      setScannerActive(false);
+      setScannerActive(next);
       setShowManualEntry(next);
       setError("");
       setSuccess("");
@@ -219,28 +284,79 @@ export default function GoodsReceiptPage() {
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-800">Varemottak</h1>
-          <Link href="/dashboard" className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition">Tilbake</Link>
+          {receiptModeOpen ? (
+            <button
+              type="button"
+              onClick={toggleReceiptMode}
+              className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition"
+            >
+              Tilbake
+            </button>
+          ) : (
+            <Link href="/dashboard" className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition">Tilbake</Link>
+          )}
         </div>
 
-        <div className="mb-6 bg-white rounded-2xl shadow-sm ring-1 ring-gray-200 p-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">Registrere varemottak?</p>
-              <h2 className="mt-1 text-xl font-semibold text-gray-900">
-                {receiptModeOpen ? "Kamera og mottaksregistrering er åpnet" : "Kamera og mottaksregistrering er lukket"}
-              </h2>
-            </div>
+        <div className={receiptModeOpen ? "mb-4" : "mb-6 grid gap-6 lg:grid-cols-2 lg:items-stretch"}>
+          <div
+            onClick={!receiptModeOpen ? toggleReceiptMode : undefined}
+            onKeyDown={(event) => {
+              if (receiptModeOpen) {
+                return;
+              }
 
-            <button
-              onClick={toggleReceiptMode}
-              className={`px-4 py-3 rounded-lg font-medium text-white transition ${receiptModeOpen
-                ? "bg-gray-700 hover:bg-gray-800"
-                : "bg-blue-600 hover:bg-blue-700"
-                }`}
-            >
-              {receiptModeOpen ? "Skjul kamera og mottaksregistrering" : "Åpne kamera for mottak av kolli"}
-            </button>
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                toggleReceiptMode();
+              }
+            }}
+            role={!receiptModeOpen ? "button" : undefined}
+            tabIndex={!receiptModeOpen ? 0 : undefined}
+            className={`bg-white rounded-2xl shadow-sm ring-1 ring-gray-200 ${receiptModeOpen ? "p-4" : "h-full cursor-pointer p-6 transition hover:ring-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-300"}`}
+          >
+            <div className={`flex flex-col gap-4 ${receiptModeOpen ? "md:flex-row md:items-center md:justify-between" : "h-full justify-between"}`}>
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">Start varemottak</p>
+                <h2 className={`${receiptModeOpen ? "mt-1 text-lg" : "mt-1 text-xl"} font-semibold text-gray-900`}>
+                  {receiptModeOpen ? "Varemottaket er i gang" : "Klar til å skanne kolli"}
+                </h2>
+                <p className="mt-1 text-sm text-gray-600">
+                  Skann eller registrer manuelt.
+                </p>
+              </div>
+
+              <div className={`flex flex-col items-start gap-3 ${receiptModeOpen ? "sm:flex-row sm:items-center" : "mt-6"}`}>
+                {!receiptModeOpen ? (
+                  <button
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggleReceiptMode();
+                    }}
+                    className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 sm:w-auto"
+                  >
+                    {items.length > 0 ? "Fortsett varemottak" : "Start varemottak"}
+                  </button>
+                ) : null}
+                {hasReceiptHistory ? (
+                  <button
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void openReceiptHistory();
+                    }}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 sm:w-auto"
+                  >
+                    Historikk
+                  </button>
+                ) : null}
+              </div>
+            </div>
           </div>
+
+          {!receiptModeOpen && customerNumber ? (
+            <div className="h-full [&>section]:mb-0 [&>section]:h-full">
+              <OrdersOverview customerNumber={customerNumber} />
+            </div>
+          ) : null}
         </div>
 
         {receiptModeOpen ? (
@@ -259,14 +375,6 @@ export default function GoodsReceiptPage() {
             </div>
 
             <div className="lg:col-span-1">
-              {hasReceiptHistory ? (
-                <button
-                  onClick={() => void openReceiptHistory()}
-                  className="mb-4 block w-full rounded-xl bg-blue-600 px-4 py-3 text-center font-semibold text-white shadow-lg transition hover:bg-blue-700"
-                >
-                  Siste varemottak
-                </button>
-              ) : null}
               <ItemsList
                 items={items}
                 removeItem={removeItem}
@@ -302,13 +410,11 @@ export default function GoodsReceiptPage() {
           </div>
         ) : null}
 
-        {customerNumber ? (
-          <OrdersOverview customerNumber={customerNumber} compact={receiptModeOpen} />
-        ) : (
+        {!receiptModeOpen && !customerNumber ? (
           <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-800">
             Fant ikke kundenummer for innlogget bruker. Logg inn på nytt for å hente riktig kundegrunnlag.
           </div>
-        )}
+        ) : null}
       </div>
 
       <ReceiptConfirmationModal

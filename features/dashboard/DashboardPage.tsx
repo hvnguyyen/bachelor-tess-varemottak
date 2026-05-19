@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { clearStoredUserProfile } from "@/lib/userProfile";
@@ -67,7 +68,10 @@ export default function DashboardPage() {
       {/* Header */}
       <header className="bg-white shadow-md">
         <div className="max-w-6xl mx-auto px-4 py-6 flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-gray-800">TESS Digitalt Varemottak</h1>
+          <h1 className="flex items-center gap-3 text-3xl font-bold text-gray-800">
+            <Image src="/tess-logo.svg" alt="TESS" width={156} height={32} className="h-8 w-auto" priority />
+            <span>Digitalt Varemottak</span>
+          </h1>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-gray-600">
               <span suppressHydrationWarning>

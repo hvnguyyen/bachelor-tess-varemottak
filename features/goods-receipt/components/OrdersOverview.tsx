@@ -183,7 +183,7 @@ export default function OrdersOverview({ customerNumber, compact = false }: Prop
     <section className={`mb-6 bg-white rounded-2xl shadow-sm ring-1 ring-gray-200 ${compact ? "p-4" : "p-6"}`}>
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">Aktuelle ordrelinjer for mottak</h2>
+          <h2 className="text-xl font-semibold text-gray-900">Ordregrunnlag</h2>
           <p className="text-sm text-gray-600">
             Kundenummer: <span className="font-medium">{customerNumber}</span>
             {hasRequestedLoad ? (
@@ -233,7 +233,7 @@ export default function OrdersOverview({ customerNumber, compact = false }: Prop
             onClick={applyFilters}
             className="flex-1 rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
           >
-            {hasRequestedLoad ? "Oppdater ordredata" : "Hent aktuelle ordredata"}
+            {hasRequestedLoad ? "Oppdater ordregrunnlag" : "Hent ordregrunnlag"}
           </button>
           <button
             onClick={resetFilters}
@@ -259,7 +259,7 @@ export default function OrdersOverview({ customerNumber, compact = false }: Prop
       {!hasRequestedLoad ? (
         <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
 
-          Tabellen viser én rad per ordrenummer, og detaljene kan åpnes ved behov. Bruk filtrene over for å hente ordre.
+          Valgfritt oppslag for kontroll av ordrelinjer før eller under mottak.
 
         </div>
       ) : loading ? (

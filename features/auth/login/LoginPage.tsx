@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 
 type ExternalMode = "tenant" | "sso";
@@ -42,7 +43,10 @@ export default function LoginPage() {
     <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="w-full max-w-2xl">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">TESS Digitalt Varemottak</h1>
+          <h1 className="mb-2 flex flex-col items-center justify-center gap-2 text-4xl font-bold text-gray-800 sm:flex-row sm:gap-3">
+            <Image src="/tess-logo.svg" alt="TESS" width={196} height={40} className="h-10 w-auto" priority />
+            <span>Digitalt Varemottak</span>
+          </h1>
           <p className="text-gray-600">Logg inn via Entra ID for å fortsette</p>
         </div>
 

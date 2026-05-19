@@ -1,53 +1,186 @@
-[
-  {
-    "receiptId": "receipt-1778779814430-rz9zan",
-    "submittedAt": 1778779814430,
-    "itemCount": 3,
-    "customerNumber": "169999",
-    "employeeId": "676665@stud.hvl.no",
-    "items": [
-      {
-        "barcode": "8756465",
-        "timestamp": 1778779793877
-      },
-      {
-        "barcode": "7865458",
-        "timestamp": 1778779791810
-      },
-      {
-        "barcode": "7645367",
-        "timestamp": 1778779789560
-      }
-    ]
-  },
-  {
-    "receiptId": "receipt-1778773860128-71md73",
-    "submittedAt": 1778773860128,
-    "itemCount": 2,
-    "customerNumber": "169999",
-    "employeeId": "676665@stud.hvl.no",
-    "items": [
-      {
-        "barcode": "273876425",
-        "timestamp": 1778773857776
-      },
-      {
-        "barcode": "235675645",
-        "timestamp": 1778773855794
-      }
-    ]
-  },
-  {
-    "receiptId": "receipt-1778764353150-6nx2yw",
-    "submittedAt": 1778764353150,
-    "itemCount": 1,
-    "customerNumber": "169999",
-    "employeeId": "676665@stud.hvl.no",
-    "items": [
-      {
-        "barcode": "13546254",
-        "timestamp": 1778764350582
-      }
-    ]
-  }
-]
+{
+  "version": 1,
+  "updatedAt": 1779180613056,
+  "receipts": [
+    {
+      "receiptId": "receipt-846ebd98-16c3-4756-a6cf-6d61419e0b32",
+      "submittedAt": 1779180613056,
+      "itemCount": 1,
+      "customerNumber": "169999",
+      "employeeId": "676665@stud.hvl.no",
+      "items": [
+        {
+          "barcode": "4657890",
+          "timestamp": 1779180565904
+        }
+      ]
+    },
+    {
+      "receiptId": "receipt-2f586616-2d37-450b-9888-18894ebeb31e",
+      "submittedAt": 1779179991708,
+      "itemCount": 1,
+      "customerNumber": "169999",
+      "employeeId": "676665@stud.hvl.no",
+      "items": [
+        {
+          "barcode": "67890123",
+          "timestamp": 1779179989163
+        }
+      ]
+    },
+    {
+      "receiptId": "receipt-6919fcef-352c-4a36-924d-dcc8783d172d",
+      "submittedAt": 1779179879075,
+      "itemCount": 3,
+      "customerNumber": "169999",
+      "employeeId": "676665@stud.hvl.no",
+      "items": [
+        {
+          "barcode": "314e322413431",
+          "timestamp": 1779116226528
+        },
+        {
+          "barcode": "46578",
+          "timestamp": 1779116221128
+        },
+        {
+          "barcode": "3456789",
+          "timestamp": 1779116215595
+        }
+      ]
+    },
+    {
+      "receiptId": "receipt-27f2fa90-7169-4d4a-9887-0e308e682fc5",
+      "submittedAt": 1779116124555,
+      "itemCount": 1,
+      "customerNumber": "169999",
+      "employeeId": "676665@stud.hvl.no",
+      "items": [
+        {
+          "barcode": "3456789",
+          "timestamp": 1779116121609
+        }
+      ]
+    },
+    {
+      "receiptId": "receipt-99c3ec3e-843e-4932-a69a-67dba3af9534",
+      "submittedAt": 1779111237116,
+      "itemCount": 1,
+      "customerNumber": "169999",
+      "employeeId": "676665@stud.hvl.no",
+      "items": [
+        {
+          "barcode": "54",
+          "timestamp": 1779111235190
+        }
+      ]
+    },
+    {
+      "receiptId": "receipt-416aa515-2930-4efd-b34b-1ba3d8374fbc",
+      "submittedAt": 1779111210391,
+      "itemCount": 1,
+      "customerNumber": "169999",
+      "employeeId": "676665@stud.hvl.no",
+      "items": [
+        {
+          "barcode": "325231",
+          "timestamp": 1779111206440
+        }
+      ]
+    },
+    {
+      "receiptId": "receipt-eade1fee-b5b5-4c10-9593-617696a23387",
+      "submittedAt": 1779111184054,
+      "itemCount": 2,
+      "customerNumber": "169999",
+      "employeeId": "676665@stud.hvl.no",
+      "items": [
+        {
+          "barcode": "32545354",
+          "timestamp": 1779111181706
+        },
+        {
+          "barcode": "2453214531",
+          "timestamp": 1779111179422
+        }
+      ]
+    },
+    {
+      "receiptId": "receipt-c558d7e3-833e-4935-ae9b-a46280797243",
+      "submittedAt": 1779111141155,
+      "itemCount": 1,
+      "customerNumber": "169999",
+      "employeeId": "676665@stud.hvl.no",
+      "items": [
+        {
+          "barcode": "23523432",
+          "timestamp": 1779111002507
+        }
+      ]
+    },
+    {
+      "receiptId": "receipt-ead6f39a-0f99-42da-9679-2b1c8ddd1d90",
+      "submittedAt": 1779110929941,
+      "itemCount": 1,
+      "customerNumber": "169999",
+      "employeeId": "676665@stud.hvl.no",
+      "items": [
+        {
+          "barcode": "324654",
+          "timestamp": 1778969266991
+        }
+      ]
+    },
+    {
+      "receiptId": "receipt-1778779814430-rz9zan",
+      "submittedAt": 1778779814430,
+      "itemCount": 3,
+      "customerNumber": "169999",
+      "employeeId": "676665@stud.hvl.no",
+      "items": [
+        {
+          "barcode": "8756465",
+          "timestamp": 1778779793877
+        },
+        {
+          "barcode": "7865458",
+          "timestamp": 1778779791810
+        },
+        {
+          "barcode": "7645367",
+          "timestamp": 1778779789560
+        }
+      ]
+    },
+    {
+      "receiptId": "receipt-1778773860128-71md73",
+      "submittedAt": 1778773860128,
+      "itemCount": 2,
+      "customerNumber": "169999",
+      "employeeId": "676665@stud.hvl.no",
+      "items": [
+        {
+          "barcode": "273876425",
+          "timestamp": 1778773857776
+        },
+        {
+          "barcode": "235675645",
+          "timestamp": 1778773855794
+        }
+      ]
+    },
+    {
+      "receiptId": "receipt-1778764353150-6nx2yw",
+      "submittedAt": 1778764353150,
+      "itemCount": 1,
+      "customerNumber": "169999",
+      "employeeId": "676665@stud.hvl.no",
+      "items": [
+        {
+          "barcode": "13546254",
+          "timestamp": 1778764350582
+        }
+      ]
+    }
+  ]
+}

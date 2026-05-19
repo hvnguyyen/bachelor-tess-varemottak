@@ -20,6 +20,7 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
   const lastScannedRef = useRef<{ code: string; time: number } | null>(null);
   const stoppingRef = useRef(false);
   const scannerSessionRef = useRef(0);
+  const startDelayRef = useRef<number | null>(null);
 
   useEffect(() => {
     onBarcodeScannedRef.current = onBarcodeScanned;
@@ -52,7 +53,7 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
   };
 
   const startScanner = async (sessionId: number) => {
-    if (stoppingRef.current) return;
+    if (stoppingRef.current || sessionId !== scannerSessionRef.current) return;
 
     if (html5QrcodeRef.current) {
       if (isScannerRunning) {
@@ -94,9 +95,15 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
         return;
       }
 
+      if (stoppingRef.current || sessionId !== scannerSessionRef.current) return;
+
       const aspectRatio = (container as HTMLElement).clientWidth / Math.max(1, (container as HTMLElement).clientHeight);
 
       const startAttempt = async () => {
+        if (stoppingRef.current || sessionId !== scannerSessionRef.current) {
+          return false;
+        }
+
         try {
           await scannerInstance.start(
             { facingMode: "environment" },
@@ -126,6 +133,7 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
       if (!started) {
         // retry once after a tiny delay
         await new Promise((r) => setTimeout(r, 120));
+        if (stoppingRef.current || sessionId !== scannerSessionRef.current) return;
         started = await startAttempt();
       }
 
@@ -227,6 +235,7 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
           lower.includes("cannot stop") ||
           lower.includes("is not running") ||
           lower.includes("is not running or paused") ||
+          lower.includes("scanner paused ui element not found") ||
           lower.includes("media was removed from the document")
         ) {
           console.warn("Ignored transient scanner stop error:", msg);
@@ -304,7 +313,14 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
     window.addEventListener('unhandledrejection', onUnhandledRejection as EventListener);
 
     if (scannerActive) {
-      void startScanner(sessionId);
+      if (startDelayRef.current) {
+        window.clearTimeout(startDelayRef.current);
+      }
+
+      startDelayRef.current = window.setTimeout(() => {
+        startDelayRef.current = null;
+        void startScanner(sessionId);
+      }, 120);
 
       const onResize = () => {
         if (!html5QrcodeRef.current) return;
@@ -321,6 +337,10 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
 
       return () => {
         scannerSessionRef.current += 1;
+        if (startDelayRef.current) {
+          window.clearTimeout(startDelayRef.current);
+          startDelayRef.current = null;
+        }
         window.removeEventListener("resize", onResize);
         if (resizeTimer) window.clearTimeout(resizeTimer);
         void stopScanner();
@@ -390,11 +410,28 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
     if (scannerActive) {
       await hideCamera();
     } else {
-      // turn camera on
-      setShowManualEntry(false);
       setScannerActive(true);
     }
   };
+
+  if (!scannerActive) {
+    return (
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row">
+        <button
+          onClick={handlePowerClick}
+          className="rounded-lg bg-gray-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-gray-700"
+        >
+          Vis kamera
+        </button>
+        <button
+          onClick={() => setShowManualEntry(!showManualEntry)}
+          className={`rounded-lg px-4 py-3 text-sm font-medium text-white transition ${showManualEntry ? "bg-violet-700" : "bg-violet-600 hover:bg-violet-700"}`}
+        >
+          {showManualEntry ? "Skjul manuell registrering" : "Vis manuell registrering"}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
@@ -402,31 +439,27 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
         <h2 className="text-xl font-bold text-gray-800">Skann strekkode</h2>
       </div>
 
-      {scannerActive ? (
-        <div className="relative h-96 w-full overflow-hidden rounded-lg bg-gray-700">
-          <div ref={containerRef} id="qr-scanner" className="h-full w-full" />
+      <div className="relative h-96 w-full overflow-hidden rounded-lg bg-gray-700">
+        <div ref={containerRef} id="qr-scanner" className="h-full w-full" />
 
-          <div className="pointer-events-none absolute inset-x-0 top-4 flex justify-center">
-            <span className="rounded-full bg-black/45 px-3 py-1 text-sm text-gray-100 backdrop-blur-sm">
-              {isScannerRunning ? "Skanner kjører..." : "Starter kamera..."}
-            </span>
-          </div>
-
-          {/* Centered scan frame overlay */}
-          <div className="scan-frame pointer-events-none">
-            <span className="corner tl" />
-            <span className="corner tr" />
-            <span className="corner bl" />
-            <span className="corner br" />
-          </div>
+        <div className="pointer-events-none absolute inset-x-0 top-4 flex justify-center">
+          <span className="rounded-full bg-black/45 px-3 py-1 text-sm text-gray-100 backdrop-blur-sm">
+            {isScannerRunning ? "Skanner kjører..." : "Starter kamera..."}
+          </span>
         </div>
-      ) : (
-        <div className="w-full h-96 bg-gray-200 rounded-lg flex items-center justify-center text-gray-600">Kamera skjult</div>
-      )}
+
+        {/* Centered scan frame overlay */}
+        <div className="scan-frame pointer-events-none">
+          <span className="corner tl" />
+          <span className="corner tr" />
+          <span className="corner bl" />
+          <span className="corner br" />
+        </div>
+      </div>
 
       <div className="mt-4 space-y-3">
-        <button onClick={handlePowerClick} className="w-full px-4 py-3 bg-gray-600 text-white rounded-lg">{scannerActive ? 'Skjul kamera' : 'Skru på kamera'}</button>
-        <button onClick={() => setShowManualEntry(!showManualEntry)} className={`w-full px-4 py-3 ${showManualEntry ? 'bg-violet-700' : 'bg-violet-600'} hover:bg-violet-700 text-white rounded-lg`}>{showManualEntry ? 'Skjul registrering' : 'Manuell registrering'}</button>
+        <button onClick={handlePowerClick} className="w-full px-4 py-3 bg-gray-600 text-white rounded-lg">{scannerActive ? 'Skjul kamera' : 'Vis kamera'}</button>
+        <button onClick={() => setShowManualEntry(!showManualEntry)} className={`w-full px-4 py-3 ${showManualEntry ? 'bg-violet-700' : 'bg-violet-600'} hover:bg-violet-700 text-white rounded-lg`}>{showManualEntry ? 'Skjul manuell registrering' : 'Vis manuell registrering'}</button>
       </div>
 
       <style jsx>{`

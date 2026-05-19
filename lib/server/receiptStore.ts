@@ -426,7 +426,11 @@ export async function listReceipts(filters: {
   customerNumber?: string;
 }) {
   if (hasDatabase()) {
-    return listReceiptsFromDatabase(filters);
+    try {
+      return await listReceiptsFromDatabase(filters);
+    } catch (error) {
+      console.warn("Could not read receipts from database, falling back to file store:", error);
+    }
   }
 
   return withStoreLock(async () => {
@@ -452,7 +456,11 @@ export async function createReceipt(input: {
   items: ReceiptItem[];
 }) {
   if (hasDatabase()) {
-    return createReceiptInDatabase(input);
+    try {
+      return await createReceiptInDatabase(input);
+    } catch (error) {
+      console.warn("Could not write receipt to database, falling back to file store:", error);
+    }
   }
 
   return withStoreLock(async () => {
