@@ -6,6 +6,7 @@ import { fetchOrders } from "@/lib/ordersClient";
 import { mapOrderToTrackingOrder, TrackingOrder } from "@/lib/tracking";
 import { fetchWarehouses } from "@/lib/warehousesClient";
 import { useRequiredUserProfile } from "@/lib/useRequiredUserProfile";
+import AppHeader from "@/features/shared/components/AppHeader";
 
 const PAGE_SIZE_OPTIONS = [25, 50, 75, 100] as const;
 
@@ -219,8 +220,9 @@ export default function TrackParcelPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="mx-auto max-w-6xl">
+    <main className="flex min-h-screen flex-col bg-gradient-to-br from-tess-surface to-white">
+      <AppHeader />
+      <div className="mx-auto w-full max-w-6xl p-4">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-3xl font-bold text-gray-800">Sporingsverktøy</h1>
           <Link
@@ -233,7 +235,7 @@ export default function TrackParcelPage() {
 
         <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-200">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-green-700">Sporing</p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-tess-green-dark">Sporing</p>
             <h2 className="mt-2 text-2xl font-bold text-gray-900">Ordrestatus og siste registrering</h2>
           </div>
 
@@ -244,7 +246,7 @@ export default function TrackParcelPage() {
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 placeholder="Søk etter ordrenummer, referanse eller lager"
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-100 lg:min-w-[30rem]"
+                className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-tess-green focus:ring-2 focus:ring-tess-green-light lg:min-w-[30rem]"
               />
 
               <button
@@ -277,7 +279,7 @@ export default function TrackParcelPage() {
                       void loadTrackingData(1, nextPageSize);
                     }
                   }}
-                  className="rounded-lg border border-gray-300 bg-white px-3 py-3 text-gray-900 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-100"
+                  className="rounded-lg border border-gray-300 bg-white px-3 py-3 text-gray-900 outline-none transition focus:border-tess-green focus:ring-2 focus:ring-tess-green-light"
                 >
                   {PAGE_SIZE_OPTIONS.map((option) => (
                     <option key={option} value={option}>
@@ -290,7 +292,7 @@ export default function TrackParcelPage() {
               <button
                 onClick={() => loadTrackingData(1, pageSize)}
                 disabled={loading || !customerNumber}
-                className="rounded-lg bg-green-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-700 disabled:bg-gray-300 lg:min-w-36"
+                className="rounded-lg bg-tess-green px-4 py-3 text-sm font-semibold text-white transition hover:bg-tess-green-dark disabled:bg-gray-300 lg:min-w-36"
               >
                 Hent ordre
               </button>
@@ -304,7 +306,7 @@ export default function TrackParcelPage() {
                 <select
                   value={selectedWarehouse ?? ""}
                   onChange={(event) => setSelectedWarehouse(event.target.value || null)}
-                  className="rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-100"
+                  className="rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none transition focus:border-tess-green focus:ring-2 focus:ring-tess-green-light"
                 >
                   <option value="">
                     {warehousesLoading ? "Laster lagre..." : "Alle lager"}
@@ -322,7 +324,7 @@ export default function TrackParcelPage() {
                 <select
                   value={selectedStatusCode ?? ""}
                   onChange={(event) => setSelectedStatusCode(event.target.value || null)}
-                  className="rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-100"
+                  className="rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none transition focus:border-tess-green focus:ring-2 focus:ring-tess-green-light"
                 >
                   <option value="">Alle statuskoder</option>
                   {statusCodes.map((value) => (
@@ -361,7 +363,7 @@ export default function TrackParcelPage() {
                 <p>Henter sporingsdata...</p>
                 <div className="mx-auto h-2 w-56 overflow-hidden rounded-full bg-gray-200">
                   <div
-                    className="h-full rounded-full bg-green-600 transition-[width] duration-300"
+                    className="h-full rounded-full bg-tess-green transition-[width] duration-300"
                     style={{ width: `${loadingProgress}%` }}
                   />
                 </div>
@@ -428,7 +430,7 @@ export default function TrackParcelPage() {
                         <p>{formatCurrency(order.totalSum)}</p>
                         <button
                           onClick={() => setExpandedOrderId(isOpen ? null : order.orderId)}
-                          className="mt-2 font-semibold text-green-700 transition hover:text-green-900"
+                          className="mt-2 font-semibold text-tess-green-dark transition hover:text-tess-green-darker"
                         >
                           {isOpen ? "Skjul detaljer" : "Vis detaljer"}
                         </button>
@@ -474,7 +476,7 @@ export default function TrackParcelPage() {
                     <p>Laster ordre...</p>
                     <div className="mx-auto h-2 w-56 overflow-hidden rounded-full bg-gray-200">
                       <div
-                        className="h-full rounded-full bg-green-600 transition-[width] duration-300"
+                        className="h-full rounded-full bg-tess-green transition-[width] duration-300"
                         style={{ width: `${loadingProgress}%` }}
                       />
                     </div>

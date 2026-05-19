@@ -40,7 +40,7 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100">
+    <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-gradient-to-br from-tess-surface to-white">
       <div className="w-full max-w-2xl">
         <div className="text-center mb-8">
           <h1 className="mb-2 flex flex-col items-center justify-center gap-2 text-4xl font-bold text-gray-800 sm:flex-row sm:gap-3">

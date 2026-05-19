@@ -7,6 +7,7 @@ import {
   StoredReceipt,
 } from "@/lib/receipts";
 import { useRequiredUserProfile } from "@/lib/useRequiredUserProfile";
+import AppHeader from "@/features/shared/components/AppHeader";
 
 function formatDateTime(value: number) {
   return new Date(value).toLocaleString("no-NO");
@@ -77,8 +78,9 @@ export default function ReceiptHistoryPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-5xl mx-auto">
+    <main className="flex min-h-screen flex-col bg-gradient-to-br from-tess-surface to-white">
+      <AppHeader />
+      <div className="max-w-5xl mx-auto p-4 w-full">
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-800">Siste varemottak</h1>
@@ -130,7 +132,7 @@ export default function ReceiptHistoryPage() {
                         </div>
                       </div>
 
-                      <span className="text-sm font-medium text-blue-700">
+                      <span className="text-sm font-medium text-tess-green-dark">
                         {isOpen ? "Skjul detaljer" : "Vis detaljer"}
                       </span>
                     </div>

@@ -35,7 +35,7 @@ export default function ReceiptConfirmationModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
       <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl ring-1 ring-gray-200">
         <div className="border-b border-gray-100 px-6 py-5">
-          <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
+          <p className="text-sm font-semibold uppercase tracking-wide text-tess-green-dark">
             Bekreft mottak
           </p>
           <h2 className="mt-1 text-2xl font-semibold text-gray-900">
@@ -99,7 +99,7 @@ export default function ReceiptConfirmationModal({
           <button
             onClick={onConfirm}
             disabled={isSubmitting}
-            className="rounded-lg bg-green-600 px-4 py-3 font-semibold text-white transition hover:bg-green-700 disabled:bg-gray-400"
+            className="rounded-lg bg-tess-green px-4 py-3 font-semibold text-white transition hover:bg-tess-green-dark disabled:bg-gray-400"
           >
             {isSubmitting ? "Registrerer..." : "Bekreft registrering"}
           </button>

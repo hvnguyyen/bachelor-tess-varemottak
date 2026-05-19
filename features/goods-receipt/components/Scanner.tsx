@@ -425,7 +425,7 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
         </button>
         <button
           onClick={() => setShowManualEntry(!showManualEntry)}
-          className={`rounded-lg px-4 py-3 text-sm font-medium text-white transition ${showManualEntry ? "bg-violet-700" : "bg-violet-600 hover:bg-violet-700"}`}
+          className={`rounded-lg px-4 py-3 text-sm font-medium text-white transition ${showManualEntry ? "bg-tess-charcoal" : "bg-tess-graphite hover:bg-tess-charcoal"}`}
         >
           {showManualEntry ? "Skjul manuell registrering" : "Vis manuell registrering"}
         </button>
@@ -459,7 +459,7 @@ export default function Scanner({ scannerActive, setScannerActive, showManualEnt
 
       <div className="mt-4 space-y-3">
         <button onClick={handlePowerClick} className="w-full px-4 py-3 bg-gray-600 text-white rounded-lg">{scannerActive ? 'Skjul kamera' : 'Vis kamera'}</button>
-        <button onClick={() => setShowManualEntry(!showManualEntry)} className={`w-full px-4 py-3 ${showManualEntry ? 'bg-violet-700' : 'bg-violet-600'} hover:bg-violet-700 text-white rounded-lg`}>{showManualEntry ? 'Skjul manuell registrering' : 'Vis manuell registrering'}</button>
+        <button onClick={() => setShowManualEntry(!showManualEntry)} className={`w-full px-4 py-3 ${showManualEntry ? 'bg-tess-charcoal' : 'bg-tess-graphite'} hover:bg-tess-charcoal text-white rounded-lg`}>{showManualEntry ? 'Skjul manuell registrering' : 'Vis manuell registrering'}</button>
       </div>
 
       <style jsx>{`

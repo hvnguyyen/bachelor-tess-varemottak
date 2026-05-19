@@ -212,13 +212,13 @@ export default function OrdersOverview({ customerNumber, compact = false }: Prop
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_11rem_12rem]">
+      <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_9rem_auto_auto] md:items-center">
         <input
           type="text"
           value={draftOrderNumber}
           onChange={(event) => setDraftOrderNumber(event.target.value)}
           placeholder="Filtrer på ordrenummer"
-          className="rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          className="min-w-0 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-tess-green focus:ring-2 focus:ring-tess-green-light"
         />
         <input
           type="number"
@@ -226,22 +226,20 @@ export default function OrdersOverview({ customerNumber, compact = false }: Prop
           value={draftStatus}
           onChange={(event) => setDraftStatus(event.target.value)}
           placeholder="Status"
-          className="rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          className="min-w-0 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-tess-green focus:ring-2 focus:ring-tess-green-light"
         />
-        <div className="flex gap-3">
-          <button
-            onClick={applyFilters}
-            className="flex-1 rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
-          >
-            {hasRequestedLoad ? "Oppdater ordregrunnlag" : "Hent ordregrunnlag"}
-          </button>
-          <button
-            onClick={resetFilters}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-          >
-            Nullstill
-          </button>
-        </div>
+        <button
+          onClick={applyFilters}
+          className="whitespace-nowrap rounded-lg bg-tess-green px-4 py-3 text-sm font-semibold text-white transition hover:bg-tess-green-dark"
+        >
+          {hasRequestedLoad ? "Oppdater ordregrunnlag" : "Hent ordregrunnlag"}
+        </button>
+        <button
+          onClick={resetFilters}
+          className="whitespace-nowrap rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+        >
+          Nullstill
+        </button>
       </div>
 
       {hasRequestedLoad ? (
@@ -251,7 +249,7 @@ export default function OrdersOverview({ customerNumber, compact = false }: Prop
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
             placeholder="Søk i lastet side etter selskap, lager eller referanse"
-            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-tess-green focus:ring-2 focus:ring-tess-green-light"
           />
         </div>
       ) : null}
@@ -306,7 +304,7 @@ export default function OrdersOverview({ customerNumber, compact = false }: Prop
                       <td className="px-4 py-3 text-right">
                         <button
                           onClick={() => setExpandedOrderId(isOpen ? null : row.orderId)}
-                          className="font-medium text-blue-700 transition hover:text-blue-900"
+                          className="font-medium text-tess-green-dark transition hover:text-tess-green-darker"
                         >
                           {isOpen ? "Skjul" : "Vis"}
                         </button>

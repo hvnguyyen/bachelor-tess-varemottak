@@ -11,6 +11,7 @@ import {
 import { useRequiredUserProfile } from "@/lib/useRequiredUserProfile";
 
 import Link from "next/link";
+import AppHeader from "@/features/shared/components/AppHeader";
 import Scanner from "./components/Scanner";
 import ManualEntry from "./components/ManualEntry";
 import ItemsList from "./components/ItemsList";
@@ -279,9 +280,9 @@ export default function GoodsReceiptPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      {/* Header */}
-      <div className="max-w-6xl mx-auto">
+    <main className="flex min-h-screen flex-col bg-gradient-to-br from-tess-surface to-white">
+      <AppHeader />
+      <div className="max-w-6xl mx-auto p-4 w-full">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-800">Varemottak</h1>
           {receiptModeOpen ? (
@@ -297,67 +298,58 @@ export default function GoodsReceiptPage() {
           )}
         </div>
 
-        <div className={receiptModeOpen ? "mb-4" : "mb-6 grid gap-6 lg:grid-cols-2 lg:items-stretch"}>
-          <div
-            onClick={!receiptModeOpen ? toggleReceiptMode : undefined}
-            onKeyDown={(event) => {
-              if (receiptModeOpen) {
-                return;
-              }
-
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                toggleReceiptMode();
-              }
-            }}
-            role={!receiptModeOpen ? "button" : undefined}
-            tabIndex={!receiptModeOpen ? 0 : undefined}
-            className={`bg-white rounded-2xl shadow-sm ring-1 ring-gray-200 ${receiptModeOpen ? "p-4" : "h-full cursor-pointer p-6 transition hover:ring-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-300"}`}
-          >
-            <div className={`flex flex-col gap-4 ${receiptModeOpen ? "md:flex-row md:items-center md:justify-between" : "h-full justify-between"}`}>
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">Start varemottak</p>
-                <h2 className={`${receiptModeOpen ? "mt-1 text-lg" : "mt-1 text-xl"} font-semibold text-gray-900`}>
-                  {receiptModeOpen ? "Varemottaket er i gang" : "Klar til å skanne kolli"}
-                </h2>
-                <p className="mt-1 text-sm text-gray-600">
-                  Skann eller registrer manuelt.
-                </p>
-              </div>
-
-              <div className={`flex flex-col items-start gap-3 ${receiptModeOpen ? "sm:flex-row sm:items-center" : "mt-6"}`}>
-                {!receiptModeOpen ? (
-                  <button
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      toggleReceiptMode();
-                    }}
-                    className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 sm:w-auto"
-                  >
+        {!receiptModeOpen ? (
+          <div className="mb-6 flex flex-col gap-6">
+            <div
+              onClick={toggleReceiptMode}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  toggleReceiptMode();
+                }
+              }}
+              role="button"
+              tabIndex={0}
+              className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-200 cursor-pointer p-6 transition hover:ring-tess-green-soft focus:outline-none focus:ring-2 focus:ring-tess-green-soft"
+            >
+              <div className="flex flex-col gap-4">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-wide text-tess-green-dark">
                     {items.length > 0 ? "Fortsett varemottak" : "Start varemottak"}
-                  </button>
-                ) : null}
+                  </p>
+                  <h2 className="mt-1 text-xl font-semibold text-gray-900">
+                    {items.length > 0
+                      ? "Trykk for å fortsette varemottak"
+                      : "Trykk for å starte skanning av kolli"}
+                  </h2>
+                  <p className="mt-1 text-sm text-gray-600">
+                    Skann eller registrer manuelt.
+                  </p>
+                </div>
+
                 {hasReceiptHistory ? (
-                  <button
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      void openReceiptHistory();
-                    }}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 sm:w-auto"
-                  >
-                    Historikk
-                  </button>
+                  <div className="mt-4 flex flex-col items-start gap-3">
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void openReceiptHistory();
+                      }}
+                      className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 sm:w-auto"
+                    >
+                      Se tidligere registrerte varemottak
+                    </button>
+                  </div>
                 ) : null}
               </div>
             </div>
-          </div>
 
-          {!receiptModeOpen && customerNumber ? (
-            <div className="h-full [&>section]:mb-0 [&>section]:h-full">
-              <OrdersOverview customerNumber={customerNumber} />
-            </div>
-          ) : null}
-        </div>
+            {customerNumber ? (
+              <div className="[&>section]:mb-0">
+                <OrdersOverview customerNumber={customerNumber} />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {receiptModeOpen ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
@@ -385,7 +377,7 @@ export default function GoodsReceiptPage() {
               {error ? (
                 <div className="mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">{error}</div>
               ) : success ? (
-                <div className="mt-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">{success}</div>
+                <div className="mt-4 bg-tess-green-light border border-tess-green-soft text-tess-green-dark px-4 py-3 rounded-lg">{success}</div>
               ) : null}
             </div>
           </div>
