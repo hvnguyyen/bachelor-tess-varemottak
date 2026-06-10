@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import axios from "axios";
-import { ensureTessApiConfigured, getTessCookieHeader, tessClient } from "@/lib/tessClient";
 import { GetOrdersApiResponse } from "@/lib/orders";
+import { fetchOrdersUpstream } from "@/lib/ordersProxy";
+import { isMockApiMode } from "@/lib/apiMode";
+import { MOCK_ORDERS } from "@/lib/mockData";
 
 const ALLOWED_QUERY_PARAMS = [
   "ordernumber",
@@ -14,6 +15,8 @@ const ALLOWED_QUERY_PARAMS = [
   "pageSize",
 ] as const;
 
+const CUSTOMER_NUMBER_RE = /^\d{1,20}$/;
+
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const customerNumber = searchParams.get("customerNumber")?.trim();
@@ -25,17 +28,16 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const accessToken =
-    request.cookies.get("accessToken")?.value ?? process.env.TESS_ACCESS_TOKEN;
-
-  if (!accessToken) {
+  if (!CUSTOMER_NUMBER_RE.test(customerNumber)) {
     return NextResponse.json(
-      { message: "Missing access token. Log in or set TESS_ACCESS_TOKEN in .env.local for testing." },
-      { status: 401 }
+      { message: "Ugyldig kundenummer" },
+      { status: 400 }
     );
   }
 
-  ensureTessApiConfigured();
+  if (isMockApiMode()) {
+    return NextResponse.json(MOCK_ORDERS, { status: 200 });
+  }
 
   const upstreamParams = new URLSearchParams();
 
@@ -48,23 +50,10 @@ export async function GET(request: NextRequest) {
 
   const upstreamPath =
     upstreamParams.size > 0
-      ? `/order/${customerNumber}?${upstreamParams.toString()}`
-      : `/order/${customerNumber}`;
+      ? `/order/${encodeURIComponent(customerNumber)}?${upstreamParams.toString()}`
+      : `/order/${encodeURIComponent(customerNumber)}`;
 
-  try {
-    const response = await tessClient.get<GetOrdersApiResponse>(upstreamPath, {
-      headers: getTessCookieHeader(accessToken),
-    });
+  const upstreamResponse = await fetchOrdersUpstream<GetOrdersApiResponse>(request, upstreamPath);
 
-    return NextResponse.json(response.data, { status: 200 });
-  } catch (error: unknown) {
-    const status = axios.isAxiosError(error)
-      ? (error.response?.status ?? 500)
-      : 500;
-    const data = axios.isAxiosError(error)
-      ? (error.response?.data ?? { message: "Failed to fetch /order/{customerNumber}" })
-      : { message: "Failed to fetch /order/{customerNumber}" };
-
-    return NextResponse.json(data, { status });
-  }
+  return NextResponse.json(upstreamResponse.data, { status: upstreamResponse.status });
 }

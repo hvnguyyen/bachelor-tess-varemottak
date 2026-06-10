@@ -16,14 +16,25 @@ export async function GET(request: NextRequest, context: Context) {
     return NextResponse.json({ message: "Invalid auth mode" }, { status: 400 });
   }
 
-  const idToken = `mock-id-token-${mode}-${Date.now()}`;
-  const accessToken = MOCK_ACCESS_TOKEN;
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const forwardedHost =
+    request.headers.get("x-forwarded-host") ?? request.headers.get("host");
 
-  const redirectUrl = new URL("/login", request.url);
-  redirectUrl.searchParams.set("mockAuth", "success");
-  redirectUrl.searchParams.set("mode", mode);
-  redirectUrl.searchParams.set("idToken", idToken);
-  redirectUrl.searchParams.set("accessToken", accessToken);
+  const externalOrigin =
+    forwardedProto && forwardedHost
+      ? `${forwardedProto}://${forwardedHost}`
+      : request.nextUrl.origin;
 
-  return NextResponse.redirect(redirectUrl);
+  // Set the session cookie directly on the redirect — no tokens in the URL.
+  const response = NextResponse.redirect(new URL("/auth/complete", externalOrigin));
+
+  response.cookies.set("accessToken", MOCK_ACCESS_TOKEN, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 8, // 8 hours (one shift)
+  });
+
+  return response;
 }

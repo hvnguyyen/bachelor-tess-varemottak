@@ -1,0 +1,882 @@
+diff --git a/app/api/mock-auth/[mode]/route.ts b/app/api/mock-auth/[mode]/route.ts
+index bcaa1c6..aaac680 100644
+--- a/app/api/mock-auth/[mode]/route.ts
++++ b/app/api/mock-auth/[mode]/route.ts
+@@ -16,9 +16,6 @@ export async function GET(request: NextRequest, context: Context) {
+     return NextResponse.json({ message: "Invalid auth mode" }, { status: 400 });
+   }
+ 
+-  const idToken = `mock-id-token-${mode}-${Date.now()}`;
+-  const accessToken = MOCK_ACCESS_TOKEN;
+-
+   const forwardedProto = request.headers.get("x-forwarded-proto");
+   const forwardedHost =
+     request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+@@ -28,11 +25,16 @@ export async function GET(request: NextRequest, context: Context) {
+       ? `${forwardedProto}://${forwardedHost}`
+       : request.nextUrl.origin;
+ 
+-  const redirectUrl = new URL("/login", externalOrigin);
+-  redirectUrl.searchParams.set("mockAuth", "success");
+-  redirectUrl.searchParams.set("mode", mode);
+-  redirectUrl.searchParams.set("idToken", idToken);
+-  redirectUrl.searchParams.set("accessToken", accessToken);
++  // Set the session cookie directly on the redirect — no tokens in the URL.
++  const response = NextResponse.redirect(new URL("/auth/complete", externalOrigin));
++
++  response.cookies.set("accessToken", MOCK_ACCESS_TOKEN, {
++    httpOnly: true,
++    sameSite: "lax",
++    secure: process.env.NODE_ENV === "production",
++    path: "/",
++    maxAge: 60 * 60 * 8, // 8 hours (one shift)
++  });
+ 
+-  return NextResponse.redirect(redirectUrl);
++  return response;
+ }
+diff --git a/app/api/orders/route.ts b/app/api/orders/route.ts
+index 5d4fb7c..ffe0110 100644
+--- a/app/api/orders/route.ts
++++ b/app/api/orders/route.ts
+@@ -13,6 +13,8 @@ const ALLOWED_QUERY_PARAMS = [
+   "pageSize",
+ ] as const;
+ 
++const CUSTOMER_NUMBER_RE = /^\d{1,20}$/;
++
+ export async function GET(request: NextRequest) {
+   const { searchParams } = request.nextUrl;
+   const customerNumber = searchParams.get("customerNumber")?.trim();
+@@ -24,6 +26,13 @@ export async function GET(request: NextRequest) {
+     );
+   }
+ 
++  if (!CUSTOMER_NUMBER_RE.test(customerNumber)) {
++    return NextResponse.json(
++      { message: "Ugyldig kundenummer" },
++      { status: 400 }
++    );
++  }
++
+   const upstreamParams = new URLSearchParams();
+ 
+   for (const key of ALLOWED_QUERY_PARAMS) {
+@@ -35,8 +44,9 @@ export async function GET(request: NextRequest) {
+ 
+   const upstreamPath =
+     upstreamParams.size > 0
+-      ? `/order/${customerNumber}?${upstreamParams.toString()}`
+-      : `/order/${customerNumber}`;
++      ? `/order/${encodeURIComponent(customerNumber)}?${upstreamParams.toString()}`
++      : `/order/${encodeURIComponent(customerNumber)}`;
++
+   const upstreamResponse = await fetchOrdersUpstream<GetOrdersApiResponse>(request, upstreamPath);
+ 
+   return NextResponse.json(upstreamResponse.data, { status: upstreamResponse.status });
+diff --git a/app/api/receipts/route.ts b/app/api/receipts/route.ts
+index d40858e..275206d 100644
+--- a/app/api/receipts/route.ts
++++ b/app/api/receipts/route.ts
+@@ -1,11 +1,19 @@
+-import { NextResponse } from "next/server";
++import { NextRequest, NextResponse } from "next/server";
+ import {
+   CreateReceiptErrorResponse,
+   CreateReceiptSuccessResponse,
+   isCreateReceiptRequest,
+ } from "@/lib/receipts";
+ 
+-export async function POST(request: Request) {
++export async function POST(request: NextRequest) {
++  const accessToken = request.cookies.get("accessToken")?.value;
++  if (!accessToken) {
++    return NextResponse.json<CreateReceiptErrorResponse>(
++      { ok: false, message: "Ikke autentisert" },
++      { status: 401 }
++    );
++  }
++
+   const body = await request.json().catch(() => null);
+ 
+   if (!isCreateReceiptRequest(body) || body.items.length === 0) {
+@@ -23,11 +31,6 @@ export async function POST(request: Request) {
+     timestamp: item.timestamp,
+   }));
+ 
+-  console.log("POST /api/receipts", {
+-    itemCount: normalizedItems.length,
+-    items: normalizedItems,
+-  });
+-
+   const response: CreateReceiptSuccessResponse = {
+     ok: true,
+     receiptId: `temp-receipt-${Date.now()}`,
+diff --git a/app/api/warehouses/route.ts b/app/api/warehouses/route.ts
+index 96511d2..adc2637 100644
+--- a/app/api/warehouses/route.ts
++++ b/app/api/warehouses/route.ts
+@@ -27,9 +27,15 @@ function normalizeWarehouses(payload: unknown): Warehouse[] {
+     .filter((warehouse) => warehouse.warehouseName.toUpperCase() !== "BRUKES IKKE");
+ }
+ 
++const CUSTOMER_NUMBER_RE = /^\d{1,20}$/;
++
+ export async function GET(request: NextRequest) {
+   const customerNumber = request.nextUrl.searchParams.get("customerNumber")?.trim();
+ 
++  if (customerNumber && !CUSTOMER_NUMBER_RE.test(customerNumber)) {
++    return NextResponse.json({ message: "Ugyldig kundenummer" }, { status: 400 });
++  }
++
+   const upstreamPath = customerNumber
+     ? `/warehouse/getAllCustomerWarehouse?customerNumber=${encodeURIComponent(customerNumber)}`
+     : "/warehouse";
+diff --git a/app/auth/complete/page.tsx b/app/auth/complete/page.tsx
+index 3f3df36..194f1c8 100644
+--- a/app/auth/complete/page.tsx
++++ b/app/auth/complete/page.tsx
+@@ -4,27 +4,6 @@ import { useEffect, useState } from "react";
+ import { useRouter } from "next/navigation";
+ import { extractUserProfile, saveUserProfile } from "@/lib/userProfile";
+ 
+-type UserLike = {
+-  name?: string;
+-  username?: string;
+-  email?: string;
+-  userName?: string;
+-};
+-
+-function toProfileLabel(data: unknown) {
+-
+-  const source = Array.isArray(data) ? data[0] : data;
+-  const meData = (source ?? null) as UserLike | null;
+-
+-  return (
+-    meData?.name ||
+-    meData?.username ||
+-    meData?.email ||
+-    meData?.userName ||
+-    "TESS-bruker"
+-  );
+-}
+-
+ export default function AuthCompletePage() {
+   const router = useRouter();
+   const [message, setMessage] = useState("Fullfører innlogging...");
+@@ -34,54 +13,20 @@ export default function AuthCompletePage() {
+ 
+     const finalizeAuth = async () => {
+       try {
+-        const externalApiBase = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "");
+-
+-        if (externalApiBase) {
+-
+-          const externalResponse = await fetch(`${externalApiBase}/user`, {
+-            cache: "no-store",
+-            credentials: "include",
+-
+-          });
+-
+-          if (externalResponse.ok) {
+-
+-            const externalData = await externalResponse.json().catch(() => null);
+-            const profile = extractUserProfile(externalData);
+-
+-            if (!profile) {
+-              throw new Error("Ugyldig brukerdata fra ekstern API");
+-            }
+-
+-            saveUserProfile(profile);
+-
+-            if (!cancelled) router.replace("/dashboard");
+-            return;
+-          }
+-        }
+-
+-        // Fallback for mock flow.
+         const meResponse = await fetch("/api/me", { cache: "no-store" });
+         if (!meResponse.ok) throw new Error("Kunne ikke validere session");
+ 
+         const meData = await meResponse.json().catch(() => null);
+         const profile = extractUserProfile(meData);
+ 
+-        if (!profile) {
+-          throw new Error("Ugyldig brukerdata fra /api/me");
+-        }
++        if (!profile) throw new Error("Ugyldig brukerdata fra /api/me");
+ 
+         saveUserProfile(profile);
+-
+         if (!cancelled) router.replace("/dashboard");
+-
+       } catch {
+         if (!cancelled) {
+           setMessage("Innlogging feilet. Sender deg tilbake til login...");
+-
+-          setTimeout(() => {
+-            router.replace("/login?error=auth_failed");
+-          }, 1200);
++          setTimeout(() => router.replace("/login?error=auth_failed"), 1200);
+         }
+       }
+     };
+diff --git a/docs/ARCHITECTURE.md b/docs/ARCHITECTURE.md
+new file mode 100644
+index 0000000..3f4ceb0
+--- /dev/null
++++ b/docs/ARCHITECTURE.md
+@@ -0,0 +1,262 @@
++# Architecture Overview
++
++> Oppdatert for `fase3-sporing`. Tidlegare versjon dekka fase1 med simulert login og mock-data.
++
++---
++
++## Systemarkitektur – request-flyt
++
++```
++┌─────────────────────────────────────────────────────────┐
++│                      BROWSER                            │
++│                                                         │
++│  LoginPage  DashboardPage  TrackParcelPage  GoodsReceipt│
++│      │            │               │               │     │
++│      └────────────┴───────────────┴───────────────┘     │
++│                          │                              │
++│            fetch(..., {credentials: "include"})         │
++└──────────────────────────┼──────────────────────────────┘
++                           │  HTTP + httpOnly accessToken cookie
++┌──────────────────────────▼──────────────────────────────┐
++│               NEXT.JS API ROUTES (server)               │
++│                                                         │
++│  /api/auth/login     /api/auth/logout                   │
++│  /api/me             /api/mock-auth/[mode]              │
++│  /api/orders         /api/warehouses                    │
++│  /api/receipts                                          │
++│                                                         │
++│  ┌─────────────────────────────────────────┐            │
++│  │ isMockApiMode()                         │            │
++│  │  USE_MOCK_API=true  ──► mock-respons    │            │
++│  │  (elles)            ──► ekte TESS API   │            │
++│  └─────────────────────────────────────────┘            │
++│                                                         │
++│  ordersProxy.ts → tessOrdersClient (Axios)              │
++│    Token-prioritet:                                     │
++│    1. request.cookies.get("accessToken")                │
++│    2. process.env.TESS_ACCESS_TOKEN  (dev-fallback)     │
++└────────────────┬────────────────────────────────────────┘
++                 │  Cookie: accessToken=...
++    ┌────────────▼────────────────────┐
++    │   TESS_ORDERS_API_BASE_URL      │  ← Azure proxy
++    │   (30011-proxyapi-*.azure..)    │
++    └────────────┬────────────────────┘
++                 │
++    ┌────────────▼────────────────────┐
++    │   api.tessix.no                 │  ← Ekte TESS-backend
++    └─────────────────────────────────┘
++```
++
++---
++
++## Auth-flyt
++
++```
++         Browser          Next.js API        MS Entra ID       TESS API
++            │                  │                  │                │
++── PROD ────┼──────────────────┼──────────────────┼────────────────┼──
++            │ click "Tenant"   │                  │                │
++            ├── POST /api/auth/logout ────────────►                │
++            │◄── 200 (cookie cleared) ────────────┤                │
++            │                  │                  │                │
++            │ redirect ────────────────────────────► MS Entra ID   │
++            │◄── redirect /auth/complete ──────────┤                │
++            │                  │                  │                │
++            ├── fetch NEXT_PUBLIC_API_BASE_URL/user (credentials: include) ──►
++            │◄── {userName, customerNumber, ...} ──────────────────┤
++            │ saveUserProfile → localStorage       │                │
++            │ router.push("/dashboard")            │                │
++            │                  │                  │                │
++── DEV ─────┼──────────────────┼──────────────────┼────────────────┼──
++            │ click "TTM ID"   │                  │                │
++            ├── GET /api/mock-auth/tenant ────────►│                │
++            │◄── redirect /login?mockAuth=success  │                │
++            │                  │                  │                │
++            ├── POST /api/auth/login ─────────────►│                │
++            │  {idToken, accessToken}              │                │
++            │         isMockApiMode()=true         │                │
++            │         set httpOnly cookie          │                │
++            │◄── {ok: true, mock: true} ──────────┤                │
++            │                  │                  │                │
++            ├── GET /api/me ──────────────────────►│                │
++            │         returns getMockMeResponse()  │                │
++            │◄── {userName, customerNumber} ───────┤                │
++            │ saveUserProfile → localStorage       │                │
++            │ router.push("/dashboard")            │                │
++```
++
++---
++
++## Rute- og sidekart
++
++| Rute | Feature-modul | Formål |
++| --- | --- | --- |
++| `/` | – | Redirect til `/login` |
++| `/login` | `features/auth/login/` | Innloggingsside (Tenant / SSO / TTM ID) |
++| `/auth/complete` | `app/auth/complete/` | Callback etter Entra ID-login, henter brukarprofil |
++| `/dashboard` | `features/dashboard/` | Hovudmeny med handlingskort |
++| `/goods-receipt` | `features/goods-receipt/` | Varemottak (strekkodeskanning + manuell) |
++| `/track-parcel` | `features/track-parcel/` | Ordresporing med filter og paginering |
++| `/receipts` | `features/receipts/` | Historikk over registrerte varemottak |
++| `/archive` | `features/archive/` | Placeholder (ikkje i scope) |
++
++---
++
++## Komponenttre
++
++```
++RootLayout (app/layout.tsx)
++│
++├── LoginPage (features/auth/login/LoginPage.tsx)
++│   ├── Knapp: "Logg inn som Tenant"  → redirect Entra ID CIAM
++│   ├── Knapp: "SSO"                  → redirect Entra ID SSO
++│   └── Knapp: "TTM ID" (dev)         → GET /api/mock-auth/tenant
++│
++├── AuthCompletePage (app/auth/complete/page.tsx)
++│   └── Hentar brukarprofil → localStorage → /dashboard
++│
++├── DashboardPage (features/dashboard/)
++│   ├── Header: brukarnamn + logout
++│   └── ActionCard × 2
++│       ├── → /goods-receipt   "Varemottak"
++│       └── → /track-parcel    "Sporing"
++│
++├── GoodsReceiptPage (features/goods-receipt/)
++│   ├── Scanner             (html5-qrcode, kamera)
++│   ├── ManualEntry         (tekstfelt-fallback)
++│   ├── ItemsList           (skanna varer + submit)
++│   ├── OrdersOverview      (ordrar for kunden)
++│   └── ReceiptConfirmationModal
++│
++├── TrackParcelPage (features/track-parcel/)
++│   └── Søk + filter + paginert ordreoversikt
++│       (lager-filter, status-kode-filter, fritekstsøk)
++│
++├── ReceiptHistoryPage (features/receipts/)
++│   └── Historikk frå localStorage (useSyncExternalStore)
++│
++└── ArchivePage (features/archive/)
++    └── Statisk placeholder
++```
++
++---
++
++## Datamodell
++
++```
++Order
++├── orderId: number
++├── orderNumber: string
++├── date: string (ISO)
++├── customerNumber: string
++├── companyName?: string
++├── warehouseName?: string
++├── orderAmendedDate?: string (ISO)
++└── orderLines: OrderLine[]
++       ├── orderLineNumber: number
++       ├── itemNumber / itemName: string
++       ├── quantity: number
++       ├── unit: string              ("stk", "pkt" …)
++       ├── netPrice / lineSum: number
++       ├── lineStatus: number        (statuskode 1–9)
++       └── orderLineAmendedDate?: string (ISO)
++
++       │  mapOrderToTrackingOrder()
++       ▼
++
++TrackingOrder  (avleda visningsmodell i lib/tracking.ts)
++├── currentLocationLabel: string   (companyName + warehouseName)
++├── statusValues: number[]         (unike statuskodane, sortert)
++├── statusLabel: string            ("Kode 2" / "Koder 1 / 3 / 5")
++├── lastUpdatedAt: string | null   (maks av alle amended-datoar)
++└── orderLines: OrderLine[]
++
++Warehouse
++├── warehouseNumber: string
++└── warehouseName: string          (filtrert: tom + "BRUKES IKKE" fjerna)
++
++StoredReceipt  (localStorage)
++├── receiptId: "temp-receipt-{timestamp}"
++├── submittedAt: number
++├── customerNumber / employeeId: string
++└── items: { barcode: string, timestamp: number }[]
++
++UserProfile  (localStorage)
++├── employeeId / name: string
++├── defaultCustomerNumber: string | null
++├── defaultWarehouseNumber: string | null
++└── customerNumbers: string[]
++```
++
++---
++
++## API-ruter
++
++| Rute | Metode | Mock? | Proxies til | Formål |
++| --- | --- | --- | --- | --- |
++| `/api/auth/login` | POST | Ja | `TESS_API_BASE_URL/login/cookie` | Exchange tokens → httpOnly cookie |
++| `/api/auth/logout` | POST | – | – | Slett cookie |
++| `/api/me` | GET | Ja | `TESS_API_BASE_URL/user` | Hent brukarprofil |
++| `/api/mock-auth/[mode]` | GET | Kun dev | – | Generer mock-tokens (krev USE_MOCK_API=true) |
++| `/api/orders` | GET | Nei | `TESS_ORDERS_API_BASE_URL/order/{customerNr}` | Hent ordrar med paginering |
++| `/api/warehouses` | GET | Nei | `TESS_ORDERS_API_BASE_URL/warehouse/getAllCustomerWarehouse` | Hent lagerliste |
++| `/api/receipts` | POST | Ja | – | Registrer varemottak (localStorage) |
++
++---
++
++## Kva brukar ekte API vs mock
++
++| Feature | Ekte API | Mock | Lagring |
++| --- | --- | --- | --- |
++| Login (Tenant/SSO) | ✓ | – | httpOnly cookie |
++| Login (TTM ID) | – | ✓ | httpOnly cookie |
++| Brukarprofil (/api/me) | ✓ | fallback | localStorage |
++| Ordrehenting | ✓ | – | – |
++| Lagerliste | ✓ | – | – |
++| Varemottak-submit | – | ✓ | localStorage |
++| Kvitteringshistorikk | – | – | localStorage |
++
++---
++
++## Avhengigheiter mellom lib-filer
++
++```
++apiMode.ts            ← isMockApiMode() – brukt av alle API-ruter
++tessClient.ts         ← Axios-instans mot TESS_API_BASE_URL (login, /user)
++ordersProxy.ts        ← token-henting + proxy-kall for ordrar
++  ├── ordersClient.ts ← Axios-instans mot TESS_ORDERS_API_BASE_URL
++  └── orders.ts       ← typar (Order, OrderLine, GetOrdersApiResponse)
++tracking.ts           ← mapOrderToTrackingOrder(), TrackingOrder-type
++warehousesClient.ts   ← Axios-instans for lagerkall
++warehouses.ts         ← Warehouse-type + normalizeWarehouses()
++userProfile.ts        ← extract/save/get UserProfile ↔ localStorage
++receiptHistory.ts     ← localStorage + custom events for useSyncExternalStore
++receipts.ts           ← StoredReceipt-type + createReceipt()
++```
++
++---
++
++## Miljøvariablar
++
++| Variabel | Side | Formål |
++| --- | --- | --- |
++| `TESS_API_BASE_URL` | Server | Hovud-TESS API (login, /user) |
++| `TESS_ORDERS_API_BASE_URL` | Server | Azure-proxy for ordrar/lager |
++| `TESS_ACCESS_TOKEN` | Server | Dev-fallback token (viss inga cookie) |
++| `USE_MOCK_API` | Server | `"true"` = aktiver mock-modus |
++| `NEXT_PUBLIC_API_BASE_URL` | Klient | Ekstern TESS-base for auth-redirect |
++| `NEXT_PUBLIC_USE_MOCK_API` | Klient | `"true"` = vis TTM ID-knapp i login |
++
++---
++
++## Viktige designval
++
++| Val | Løysing | Grunn |
++| --- | --- | --- |
++| Page-mønster | Tynne `app/`-wrapparar + `features/`-modular | Skil routing frå forretningslogikk |
++| Session | httpOnly cookie (`accessToken`) | JS-koden kjem ikkje til tokenen |
++| Orders API | Azure-proxy framfor direkte `api.tessix.no` | Cloudflare blokkerer server-side kall til tessix.no |
++| Token-fallback | `TESS_ACCESS_TOKEN` i `.env.local` | Lokal dev utan full login-flyt |
++| Varemottak-lagring | localStorage (ikkje TESS API) | API-integrasjon ikkje tilgjengeleg i POC |
++| Kvitteringshistorikk | `useSyncExternalStore` + custom events | Sanntidsoppdatering på tvers av faner |
++| Filtrering | Blanding server-side (paginering) + klient-side (søk/filter) | Reduserer API-kall, fleksibel UI |
+diff --git a/features/auth/login/LoginPage.tsx b/features/auth/login/LoginPage.tsx
+index ad6aa9f..8692749 100644
+--- a/features/auth/login/LoginPage.tsx
++++ b/features/auth/login/LoginPage.tsx
+@@ -1,41 +1,14 @@
+ "use client";
+ 
+-import { useCallback, useEffect, useRef, useState } from "react";
+-import { useRouter, useSearchParams } from "next/navigation";
+-import { extractUserProfile, saveUserProfile } from "@/lib/userProfile";
++import { useState } from "react";
+ 
+ type ExternalMode = "tenant" | "sso";
+ 
+ export default function LoginPage() {
+-
+-  const router = useRouter();
+-  const searchParams = useSearchParams();
+-
+   const externalApiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
+   const useMockApi = process.env.NEXT_PUBLIC_USE_MOCK_API === "true";
+ 
+-  const hasHandledMockCallback = useRef(false);
+   const [error, setError] = useState("");
+-  const [isLoading, setIsLoading] = useState(false);
+-
+-  const resolveProfileAndGoDashboard = useCallback(async () => {
+-    const meResponse = await fetch("/api/me", { cache: "no-store" });
+-    if (!meResponse.ok) {
+-      const err = await meResponse.json().catch(() => ({}));
+-      throw new Error(err?.message || "Ingen gyldig session funnet");
+-    }
+-
+-    const meData = await meResponse.json().catch(() => null);
+-
+-    const profile = extractUserProfile(meData);
+-
+-    if (!profile) {
+-      throw new Error("Kunne ikke hente brukerprofil");
+-    }
+-
+-    saveUserProfile(profile);
+-    router.push("/dashboard");
+-  }, [router]);
+ 
+   const handleExternalLogin = async (externalMode: ExternalMode) => {
+     setError("");
+@@ -44,7 +17,7 @@ export default function LoginPage() {
+       return;
+     }
+ 
+-    // Clear local mock/local session before starting external auth.
++    // Clear any existing session before starting a new external auth flow.
+     await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
+ 
+     const base = externalApiBase.replace(/\/+$/, "");
+@@ -58,48 +31,10 @@ export default function LoginPage() {
+       setError("TTM ID er kun tilgjengelig i dev med NEXT_PUBLIC_USE_MOCK_API=true");
+       return;
+     }
++    // mock-auth sets the session cookie server-side and redirects directly to /auth/complete.
+     window.location.href = "/api/mock-auth/tenant";
+   };
+ 
+-  useEffect(() => {
+-    if (!useMockApi || hasHandledMockCallback.current) return;
+-    if (searchParams.get("mockAuth") !== "success") return;
+-
+-    hasHandledMockCallback.current = true;
+-    const idToken = searchParams.get("idToken");
+-    const accessToken = searchParams.get("accessToken");
+-
+-    const run = async () => {
+-      if (!idToken || !accessToken) {
+-        setError("Mock callback mangler idToken/accessToken");
+-        return;
+-      }
+-
+-      setError("");
+-      setIsLoading(true);
+-      try {
+-        const loginResponse = await fetch("/api/auth/login", {
+-          method: "POST",
+-          headers: { "Content-Type": "application/json" },
+-          body: JSON.stringify({ idToken, accessToken }),
+-        });
+-
+-        if (!loginResponse.ok) {
+-          const loginErr = await loginResponse.json().catch(() => ({}));
+-          throw new Error(loginErr?.message || "Kunne ikke starte mock-session");
+-        }
+-
+-        await resolveProfileAndGoDashboard();
+-      } catch (err: unknown) {
+-        setError(err instanceof Error ? err.message : "Kunne ikke verifisere innlogging");
+-      } finally {
+-        setIsLoading(false);
+-      }
+-    };
+-
+-    void run();
+-  }, [resolveProfileAndGoDashboard, searchParams, useMockApi]);
+-
+   return (
+     <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100">
+       <div className="w-full max-w-2xl">
+@@ -122,17 +57,15 @@ export default function LoginPage() {
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+               <button
+                 type="button"
+-                onClick={() => handleExternalLogin("tenant")}
+-                disabled={isLoading}
+-                className="px-4 py-3 rounded-lg border bg-white text-gray-700 border-gray-300 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
++                onClick={() => void handleExternalLogin("tenant")}
++                className="px-4 py-3 rounded-lg border bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+               >
+                 Logg inn som Tenant
+               </button>
+               <button
+                 type="button"
+-                onClick={() => handleExternalLogin("sso")}
+-                disabled={isLoading}
+-                className="px-4 py-3 rounded-lg border bg-white text-gray-700 border-gray-300 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
++                onClick={() => void handleExternalLogin("sso")}
++                className="px-4 py-3 rounded-lg border bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+               >
+                 Logg inn med SSO
+               </button>
+@@ -147,10 +80,9 @@ export default function LoginPage() {
+               <button
+                 type="button"
+                 onClick={handleTtmLogin}
+-                disabled={isLoading}
+-                className="w-full bg-gray-800 hover:bg-black disabled:bg-gray-400 text-white font-medium py-3 px-4 rounded-lg transition duration-200"
++                className="w-full bg-gray-800 hover:bg-black text-white font-medium py-3 px-4 rounded-lg transition duration-200"
+               >
+-                {isLoading ? "Verifiserer..." : "Logg inn med TTM ID"}
++                Logg inn med TTM ID
+               </button>
+               <p className="text-xs text-gray-500 mt-3">
+                 Simulerer auth-kjede lokalt: authorize - callback - token exchange - session.
+diff --git a/features/goods-receipt/GoodsReceiptPage.tsx b/features/goods-receipt/GoodsReceiptPage.tsx
+index 2d52b07..17376d1 100644
+--- a/features/goods-receipt/GoodsReceiptPage.tsx
++++ b/features/goods-receipt/GoodsReceiptPage.tsx
+@@ -32,6 +32,7 @@ export default function GoodsReceiptPage() {
+   const [showManualEntry, setShowManualEntry] = useState(true);
+   const [isSubmitting, setIsSubmitting] = useState(false);
+   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
++  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
+ 
+   useEffect(() => {
+     setHasReceiptHistory(getReceiptHistory().length > 0);
+@@ -46,53 +47,37 @@ export default function GoodsReceiptPage() {
+     setCustomerNumber(profile.defaultCustomerNumber ?? profile.customerNumbers[0] ?? null);
+   }, []);
+ 
+-  const handleBarcodeScanned = (barcode: string) => {
+-    if (!barcode.trim()) return;
++  const addItem = (barcode: string) => {
+     const trimmedBarcode = barcode.trim();
+-    const now = Date.now();
++    if (!trimmedBarcode) return;
+ 
+     if (items.some((item) => item.barcode === trimmedBarcode)) {
+       setError(`Strekkode ${trimmedBarcode} er allerede registrert`);
+       setTimeout(() => setError(""), 3000);
+       return;
+     }
+-    const newItem: ReceiptItem = {
+-      barcode: trimmedBarcode,
+-      timestamp: now,
+-    };
+ 
+-    setItems((prev) => [newItem, ...prev]);
++    setItems((prev) => [{ barcode: trimmedBarcode, timestamp: Date.now() }, ...prev]);
++    setError("");
+     setSuccess(`Strekkode registrert: ${trimmedBarcode}`);
+     setTimeout(() => setSuccess(""), 2000);
+-    setError("");
+   };
+ 
+-
++  const handleBarcodeScanned = (barcode: string) => {
++    addItem(barcode);
++  };
+ 
+   const manualRegister = (code?: string) => {
+-    const trimmedBarcode = (code ?? manualCode).trim();
+     setError("");
+     setSuccess("");
++    const trimmedBarcode = (code ?? manualCode).trim();
+ 
+     if (!trimmedBarcode) {
+       setError("Vennligst skriv inn en strekkode");
+       return;
+     }
+ 
+-    if (items.some((item) => item.barcode === trimmedBarcode)) {
+-      setError(`Strekkode ${trimmedBarcode} er allerede registrert`);
+-      setManualCode("");
+-      return;
+-    }
+-
+-    const newItem: ReceiptItem = {
+-      barcode: trimmedBarcode,
+-      timestamp: Date.now(),
+-    };
+-
+-    setItems((prev) => [newItem, ...prev]);
+-    setSuccess(`Strekkode registrert: ${trimmedBarcode}`);
+-    setTimeout(() => setSuccess(""), 2000);
++    addItem(trimmedBarcode);
+     setManualCode("");
+   };
+ 
+@@ -106,12 +91,14 @@ export default function GoodsReceiptPage() {
+   };
+ 
+   const clearAll = () => {
+-    if (confirm("Er du sikker på at du vil slette alle varer?")) {
+-      setIsConfirmModalOpen(false);
+-      setItems([]);
+-      setSuccess("Alle varer slettet");
+-      setTimeout(() => setSuccess(""), 2000);
+-    }
++    setIsClearConfirmOpen(true);
++  };
++
++  const executeClearAll = () => {
++    setIsClearConfirmOpen(false);
++    setItems([]);
++    setSuccess("Alle varer slettet");
++    setTimeout(() => setSuccess(""), 2000);
+   };
+ 
+   const toggleReceiptMode = () => {
+@@ -145,22 +132,12 @@ export default function GoodsReceiptPage() {
+   };
+ 
+   const closeConfirmModal = () => {
+-    if (isSubmitting) {
+-      return;
+-    }
+-
++    if (isSubmitting) return;
+     setIsConfirmModalOpen(false);
+   };
+ 
+   const submitReceipt = async () => {
+-    if (!customerNumber) {
+-      setError("Fant ikke kundenummer for innlogget bruker");
+-      return;
+-    }
+-
+-    if (isSubmitting) {
+-      return;
+-    }
++    if (!customerNumber || isSubmitting) return;
+ 
+     setIsSubmitting(true);
+ 
+@@ -175,7 +152,8 @@ export default function GoodsReceiptPage() {
+ 
+       if (!response.ok || !result?.ok) {
+         throw new Error(
+-          result && "message" in result ? result.message : "Ugyldig svar fra server");
++          result && "message" in result ? result.message : "Ugyldig svar fra server"
++        );
+       }
+ 
+       const receiptRecord: StoredReceipt = {
+@@ -193,7 +171,6 @@ export default function GoodsReceiptPage() {
+       setIsConfirmModalOpen(false);
+       setItems([]);
+       setTimeout(() => setSuccess(""), 2000);
+-
+     } catch (err) {
+       setError(err instanceof Error ? err.message : "Kunne ikke registrere mottak");
+     } finally {
+@@ -321,6 +298,31 @@ export default function GoodsReceiptPage() {
+         onClose={closeConfirmModal}
+         onConfirm={() => void submitReceipt()}
+       />
++
++      {isClearConfirmOpen ? (
++        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
++          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-gray-200">
++            <h2 className="text-lg font-semibold text-gray-900">Slett alle varer?</h2>
++            <p className="mt-2 text-sm text-gray-600">
++              {items.length} strekkode{items.length !== 1 ? "r" : ""} vil bli slettet. Denne handlingen kan ikke angres.
++            </p>
++            <div className="mt-6 flex justify-end gap-3">
++              <button
++                onClick={() => setIsClearConfirmOpen(false)}
++                className="rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 transition hover:bg-gray-50"
++              >
++                Avbryt
++              </button>
++              <button
++                onClick={executeClearAll}
++                className="rounded-lg bg-red-600 px-4 py-2 font-semibold text-white transition hover:bg-red-700"
++              >
++                Slett alle
++              </button>
++            </div>
++          </div>
++        </div>
++      ) : null}
+     </main>
+   );
+ }
+diff --git a/features/track-parcel/TrackParcelPage.tsx b/features/track-parcel/TrackParcelPage.tsx
+index 57c85b7..c7902cc 100644
+--- a/features/track-parcel/TrackParcelPage.tsx
++++ b/features/track-parcel/TrackParcelPage.tsx
+@@ -240,7 +240,7 @@ export default function TrackParcelPage() {
+                 onClick={() => setShowFilters((current) => !current)}
+                 className="rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+               >
+-                {showFilters ? "Filtervalg" : "Filtervalg"}
++                {showFilters ? "Skjul filtervalg" : "Vis filtervalg"}
+               </button>
+ 
+               {hasActiveFilters ? (
+diff --git a/lib/apiMode.ts b/lib/apiMode.ts
+index 29b3703..1d402a2 100644
+--- a/lib/apiMode.ts
++++ b/lib/apiMode.ts
+@@ -1,9 +1,12 @@
+-export const MOCK_ACCESS_TOKEN = "mock-access-token";
++import { randomUUID } from "crypto";
++
++// Generated once per server process — not guessable unlike a fixed string.
++export const MOCK_ACCESS_TOKEN = randomUUID();
+ 
+ export function isMockApiMode() {
+-    const serverFlag = process.env.USE_MOCK_API?.toLowerCase() === "true";
+-    const publicFlag = process.env.NEXT_PUBLIC_USE_MOCK_API?.toLowerCase() === "true";
+-    return serverFlag || publicFlag;
++    // Never allow mock mode in production, regardless of env vars.
++    if (process.env.NODE_ENV === "production") return false;
++    return process.env.USE_MOCK_API?.toLowerCase() === "true";
+ }
+ 
+ export function getMockMeResponse() {
+diff --git a/lib/ordersClient.ts b/lib/ordersClient.ts
+index c890566..fb57e9b 100644
+--- a/lib/ordersClient.ts
++++ b/lib/ordersClient.ts
+@@ -1,8 +1,5 @@
+ import { GetOrdersApiResponse } from "@/lib/orders";
+ 
+-// const ORDERS_BASE_URL =
+-// process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "https://api.tessix.no";
+-
+ type GetOrdersParams = {
+   customerNumber: string;
+   ordernumber?: string;
+@@ -16,7 +13,6 @@ type GetOrdersParams = {
+ };
+ 
+ export async function fetchOrders(params: GetOrdersParams): Promise<GetOrdersApiResponse> {
+-  //const path = `${ORDERS_BASE_URL}/order/${params.customerNumber}`;
+   const query = new URLSearchParams();
+ 
+   query.set("customerNumber", params.customerNumber);
+@@ -30,8 +26,6 @@ export async function fetchOrders(params: GetOrdersParams): Promise<GetOrdersApi
+   if (params.page) query.set("page", params.page.toString());
+   if (params.pageSize) query.set("pageSize", params.pageSize.toString());
+ 
+-  // const url = query.toString() ? `${path}?${query.toString()}` : path;
+-
+   const response = await fetch(`/api/orders?${query.toString()}`, {
+     method: "GET",
+     credentials: "include",
+diff --git a/lib/ordersProxy.ts b/lib/ordersProxy.ts
+index 84a2648..fd82e3a 100644
+--- a/lib/ordersProxy.ts
++++ b/lib/ordersProxy.ts
+@@ -8,7 +8,9 @@ import {
+ 
+ export function getOrdersAccessTokens(request: NextRequest) {
+   const cookieAccessToken = request.cookies.get("accessToken")?.value;
+-  const envAccessToken = process.env.TESS_ACCESS_TOKEN;
++  // Env fallback only in development — avoids masking auth failures in production.
++  const envAccessToken =
++    process.env.NODE_ENV !== "production" ? process.env.TESS_ACCESS_TOKEN : undefined;
+ 
+   return Array.from(
+     new Set([cookieAccessToken, envAccessToken].filter((value): value is string => Boolean(value)))

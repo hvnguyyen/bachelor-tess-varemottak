@@ -2,95 +2,68 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { extractUserProfile, saveUserProfile } from "@/lib/userProfile";
-
-type UserLike = {
-  name?: string;
-  username?: string;
-  email?: string;
-  userName?: string;
-};
-
-function toProfileLabel(data: unknown) {
-
-  const source = Array.isArray(data) ? data[0] : data;
-  const meData = (source ?? null) as UserLike | null;
-
-  return (
-    meData?.name ||
-    meData?.username ||
-    meData?.email ||
-    meData?.userName ||
-    "TESS-bruker"
-  );
-}
+import {
+  clearStoredUserProfile,
+  extractUserProfile,
+  saveUserProfile,
+} from "@/lib/userProfile";
 
 export default function AuthCompletePage() {
   const router = useRouter();
   const [message, setMessage] = useState("Fullfører innlogging...");
+  const externalApiBase = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "");
+  const useMockApi = process.env.NEXT_PUBLIC_USE_MOCK_API === "true";
 
   useEffect(() => {
     let cancelled = false;
 
     const finalizeAuth = async () => {
       try {
-        const externalApiBase = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "");
-
-        if (externalApiBase) {
-
-          const externalResponse = await fetch(`${externalApiBase}/user`, {
-            cache: "no-store",
-            credentials: "include",
-
-          });
-
-          if (externalResponse.ok) {
-
-            const externalData = await externalResponse.json().catch(() => null);
-            const profile = extractUserProfile(externalData);
-
-            if (!profile) {
-              throw new Error("Ugyldig brukerdata fra ekstern API");
-            }
-
-            saveUserProfile(profile);
-
-            if (!cancelled) router.replace("/dashboard");
-            return;
-          }
+        if (!useMockApi && !externalApiBase) {
+          throw new Error("Mangler NEXT_PUBLIC_API_BASE_URL i miljøvariabler");
         }
 
-        // Fallback for mock flow.
-        const meResponse = await fetch("/api/me", { cache: "no-store" });
-        if (!meResponse.ok) throw new Error("Kunne ikke validere session");
+        const meResponse = useMockApi
+          ? await fetch("/api/me", {
+              cache: "no-store",
+              credentials: "include",
+            })
+          : await fetch(`${externalApiBase}/user`, {
+              cache: "no-store",
+              credentials: "include",
+            });
+
+        if (!meResponse.ok) {
+          throw new Error("Kunne ikke validere session");
+        }
 
         const meData = await meResponse.json().catch(() => null);
         const profile = extractUserProfile(meData);
 
         if (!profile) {
-          throw new Error("Ugyldig brukerdata fra /api/me");
+          throw new Error("Ugyldig brukerdata fra ekstern API");
         }
 
         saveUserProfile(profile);
 
-        if (!cancelled) router.replace("/dashboard");
-
+        if (!cancelled) {
+          router.replace("/dashboard");
+        }
       } catch {
         if (!cancelled) {
+          clearStoredUserProfile();
           setMessage("Innlogging feilet. Sender deg tilbake til login...");
-
-          setTimeout(() => {
-            router.replace("/login?error=auth_failed");
-          }, 1200);
+          setTimeout(() => router.replace("/login?error=auth_failed"), 1200);
         }
       }
     };
 
     void finalizeAuth();
+
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [externalApiBase, router, useMockApi]);
 
   return (
     <main className="flex min-h-screen items-center justify-center p-4 bg-gray-50">

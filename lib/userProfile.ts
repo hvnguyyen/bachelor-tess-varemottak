@@ -1,4 +1,5 @@
 export const USER_PROFILE_STORAGE_KEY = "user-profile";
+export const USER_PROFILE_STORAGE_EVENT = "user-profile-change";
 
 type ApiUser = {
     name?: string;
@@ -7,6 +8,11 @@ type ApiUser = {
     username?: string;
     userName?: string;
     email?: string;
+    defaultCompanyName?: string | null;
+    defaultCompanyNumber?: string | number | null;
+    defaultWarehouseName?: string | null;
+    defaultWarehosueName?: string | null;
+    defaultWarehouseNumber?: string | number | null;
     defaultCustomerNumber?: string | number | null;
     customerNumbers?: Array<string | number> | null;
 }
@@ -14,6 +20,10 @@ type ApiUser = {
 export type UserProfile = {
     employeeId: string;
     name: string;
+    defaultCompanyName: string | null;
+    defaultCompanyNumber: string | null;
+    defaultWarehouseName: string | null;
+    defaultWarehouseNumber: string | null;
     defaultCustomerNumber: string | null;
     customerNumbers: string[];
 }
@@ -42,6 +52,15 @@ function resolveEmployeeName(user: ApiUser): string {
     );
 }
 
+function normalizeOptionalString(value: unknown): string | null {
+    if (value === null || value === undefined) {
+        return null;
+    }
+
+    const normalized = String(value).trim();
+    return normalized || null;
+}
+
 export function extractUserProfile(data: unknown): UserProfile | null {
     const source = Array.isArray(data) ? data[0] : data;
 
@@ -67,6 +86,12 @@ export function extractUserProfile(data: unknown): UserProfile | null {
     return {
         employeeId: resolveEmployeeId(user),
         name: resolveEmployeeName(user),
+        defaultCompanyName: normalizeOptionalString(user.defaultCompanyName),
+        defaultCompanyNumber: normalizeOptionalString(user.defaultCompanyNumber),
+        defaultWarehouseName:
+            normalizeOptionalString(user.defaultWarehouseName) ??
+            normalizeOptionalString(user.defaultWarehosueName),
+        defaultWarehouseNumber: normalizeOptionalString(user.defaultWarehouseNumber),
         defaultCustomerNumber,
         customerNumbers: mergedCustomerNumbers
     };
@@ -77,6 +102,10 @@ export function saveUserProfile(profile: UserProfile) {
 
     // Midlertidig kompatibilitet med eksisterende kode.
     localStorage.setItem("employeeId", String(profile.employeeId));
+
+    if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event(USER_PROFILE_STORAGE_EVENT));
+    }
 }
 
 export function getStoredUserProfile(): UserProfile | null {
@@ -103,6 +132,26 @@ export function getStoredUserProfile(): UserProfile | null {
                 ? parsed.name.trim()
                 : "TESS-bruker";
 
+        const defaultCompanyName =
+            typeof parsed.defaultCompanyName === "string" && parsed.defaultCompanyName.trim()
+                ? parsed.defaultCompanyName.trim()
+                : null;
+
+        const defaultCompanyNumber =
+            typeof parsed.defaultCompanyNumber === "string" && parsed.defaultCompanyNumber.trim()
+                ? parsed.defaultCompanyNumber.trim()
+                : null;
+
+        const defaultWarehouseName =
+            typeof parsed.defaultWarehouseName === "string" && parsed.defaultWarehouseName.trim()
+                ? parsed.defaultWarehouseName.trim()
+                : null;
+
+        const defaultWarehouseNumber =
+            typeof parsed.defaultWarehouseNumber === "string" && parsed.defaultWarehouseNumber.trim()
+                ? parsed.defaultWarehouseNumber.trim()
+                : null;
+
         const customerNumbers = Array.isArray(parsed.customerNumbers)
             ? parsed.customerNumbers.map((value) => String(value).trim()).filter(Boolean)
             : [];
@@ -115,6 +164,10 @@ export function getStoredUserProfile(): UserProfile | null {
         return {
             name,
             employeeId,
+            defaultCompanyName,
+            defaultCompanyNumber,
+            defaultWarehouseName,
+            defaultWarehouseNumber,
             defaultCustomerNumber,
             customerNumbers
         };
@@ -126,4 +179,8 @@ export function getStoredUserProfile(): UserProfile | null {
 export function clearStoredUserProfile() {
     localStorage.removeItem(USER_PROFILE_STORAGE_KEY);
     localStorage.removeItem("employeeId");
+
+    if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event(USER_PROFILE_STORAGE_EVENT));
+    }
 }

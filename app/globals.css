@@ -1,8 +1,26 @@
 @import "tailwindcss";
 
+/*
+ * TESS-palett
+ * Primær: TESS-grønn (CTA, accenter, lenker)
+ * Sekundær: svart/grafitt (sekundære knapper, tekst, header-elementer)
+ * Flate: hvit / svært lys grå
+ */
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* TESS brand colors */
+  --tess-green: #008A3C;
+  --tess-green-dark: #006B30;
+  --tess-green-darker: #004F23;
+  --tess-green-light: #E6F4EC;
+  --tess-green-soft: #C7E7D3;
+  --tess-black: #1A1A1A;
+  --tess-charcoal: #2B2B2B;
+  --tess-graphite: #3F3F3F;
+  --tess-surface: #FAFAFA;
+  --tess-surface-soft: #F4F4F4;
 }
 
 @theme inline {
@@ -10,13 +28,18 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* TESS color tokens exposed as Tailwind utilities (bg-tess-green, text-tess-green, etc.) */
+  --color-tess-green: var(--tess-green);
+  --color-tess-green-dark: var(--tess-green-dark);
+  --color-tess-green-darker: var(--tess-green-darker);
+  --color-tess-green-light: var(--tess-green-light);
+  --color-tess-green-soft: var(--tess-green-soft);
+  --color-tess-black: var(--tess-black);
+  --color-tess-charcoal: var(--tess-charcoal);
+  --color-tess-graphite: var(--tess-graphite);
+  --color-tess-surface: var(--tess-surface);
+  --color-tess-surface-soft: var(--tess-surface-soft);
 }
 
 body {

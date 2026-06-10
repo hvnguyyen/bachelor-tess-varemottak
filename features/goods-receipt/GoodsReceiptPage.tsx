@@ -1,20 +1,59 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { getStoredUserProfile } from "@/lib/userProfile";
-import { addReceiptToHistory, getReceiptHistory } from "@/lib/receiptHistory";
-import { CreateReceiptResponse, ReceiptItem, StoredReceipt } from "@/lib/receipts";
+import { useCallback, useEffect, useState } from "react";
+import {
+  CreateReceiptResponse,
+  GetReceiptsResponse,
+  ReceiptItem,
+  isReceiptItem,
+} from "@/lib/receipts";
+import { useRequiredUserProfile } from "@/lib/useRequiredUserProfile";
 
 import Link from "next/link";
+import AppHeader from "@/features/shared/components/AppHeader";
 import Scanner from "./components/Scanner";
 import ManualEntry from "./components/ManualEntry";
 import ItemsList from "./components/ItemsList";
 import OrdersOverview from "./components/OrdersOverview";
 import ReceiptConfirmationModal from "./components/ReceiptConfirmationModal";
 
+const DRAFT_STORAGE_PREFIX = "goods-receipt-draft";
+
+function getDraftStorageKey(employeeId: string, customerNumber: string) {
+  return `${DRAFT_STORAGE_PREFIX}:${employeeId}:${customerNumber}`;
+}
+
+function loadDraftItems(storageKey: string): ReceiptItem[] {
+  try {
+    const raw = window.localStorage.getItem(storageKey);
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.filter(isReceiptItem);
+  } catch {
+    return [];
+  }
+}
+
+function saveDraftItems(storageKey: string, nextItems: ReceiptItem[]) {
+  try {
+    if (nextItems.length === 0) {
+      window.localStorage.removeItem(storageKey);
+      return;
+    }
+
+    window.localStorage.setItem(storageKey, JSON.stringify(nextItems));
+  } catch {
+    // localStorage can be unavailable in restricted browser contexts.
+  }
+}
+
 export default function GoodsReceiptPage() {
   const router = useRouter();
+  const { profile, isReady } = useRequiredUserProfile();
 
   const [hasReceiptHistory, setHasReceiptHistory] = useState(false);
 
@@ -26,73 +65,114 @@ export default function GoodsReceiptPage() {
   const [success, setSuccess] = useState("");
 
   const [items, setItems] = useState<ReceiptItem[]>([]);
+  const [draftStorageKey, setDraftStorageKey] = useState<string | null>(null);
+  const [hasLoadedDraft, setHasLoadedDraft] = useState(false);
   const [manualCode, setManualCode] = useState("");
   const [receiptModeOpen, setReceiptModeOpen] = useState(false);
   const [scannerActive, setScannerActive] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
+
+  const loadHasReceiptHistory = useCallback(async (nextEmployeeId: string) => {
+    try {
+      const query = new URLSearchParams({ employeeId: nextEmployeeId });
+      const response = await fetch(`/api/receipts?${query.toString()}`, {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        setHasReceiptHistory(false);
+        return;
+      }
+
+      const result = (await response.json().catch(() => null)) as GetReceiptsResponse | null;
+      setHasReceiptHistory(Boolean(result?.ok && result.receipts.length > 0));
+    } catch {
+      setHasReceiptHistory(false);
+    }
+  }, []);
 
   useEffect(() => {
-    setHasReceiptHistory(getReceiptHistory().length > 0);
-
-    const profile = getStoredUserProfile();
     if (!profile) {
-      setError("Fant ikke bruker. Logg inn på nytt");
       return;
     }
+
     setEmployeeId(profile.employeeId);
     setAvailableCustomerNumbers(profile.customerNumbers);
     setCustomerNumber(profile.defaultCustomerNumber ?? profile.customerNumbers[0] ?? null);
-  }, []);
+  }, [profile]);
 
-  const handleBarcodeScanned = (barcode: string) => {
-    if (!barcode.trim()) return;
+  useEffect(() => {
+    if (!profile?.employeeId) {
+      setHasReceiptHistory(false);
+      return;
+    }
+
+    void loadHasReceiptHistory(profile.employeeId);
+  }, [loadHasReceiptHistory, profile?.employeeId]);
+
+  useEffect(() => {
+    if (!profile?.employeeId || !customerNumber) {
+      setDraftStorageKey(null);
+      setHasLoadedDraft(false);
+      return;
+    }
+
+    const nextStorageKey = getDraftStorageKey(profile.employeeId, customerNumber);
+    const draftItems = loadDraftItems(nextStorageKey);
+
+    setDraftStorageKey(nextStorageKey);
+    setItems(draftItems);
+    setHasLoadedDraft(true);
+
+    if (draftItems.length > 0) {
+      setReceiptModeOpen(true);
+      setScannerActive(true);
+      setShowManualEntry(true);
+    }
+  }, [customerNumber, profile?.employeeId]);
+
+  useEffect(() => {
+    if (!draftStorageKey || !hasLoadedDraft) {
+      return;
+    }
+
+    saveDraftItems(draftStorageKey, items);
+  }, [draftStorageKey, hasLoadedDraft, items]);
+
+  const addItem = (barcode: string) => {
     const trimmedBarcode = barcode.trim();
-    const now = Date.now();
+    if (!trimmedBarcode) return;
 
     if (items.some((item) => item.barcode === trimmedBarcode)) {
       setError(`Strekkode ${trimmedBarcode} er allerede registrert`);
       setTimeout(() => setError(""), 3000);
       return;
     }
-    const newItem: ReceiptItem = {
-      barcode: trimmedBarcode,
-      timestamp: now,
-    };
 
-    setItems((prev) => [newItem, ...prev]);
+    setItems((prev) => [{ barcode: trimmedBarcode, timestamp: Date.now() }, ...prev]);
+    setError("");
     setSuccess(`Strekkode registrert: ${trimmedBarcode}`);
     setTimeout(() => setSuccess(""), 2000);
-    setError("");
   };
 
-
+  const handleBarcodeScanned = (barcode: string) => {
+    addItem(barcode);
+  };
 
   const manualRegister = (code?: string) => {
-    const trimmedBarcode = (code ?? manualCode).trim();
     setError("");
     setSuccess("");
+    const trimmedBarcode = (code ?? manualCode).trim();
 
     if (!trimmedBarcode) {
       setError("Vennligst skriv inn en strekkode");
       return;
     }
 
-    if (items.some((item) => item.barcode === trimmedBarcode)) {
-      setError(`Strekkode ${trimmedBarcode} er allerede registrert`);
-      setManualCode("");
-      return;
-    }
-
-    const newItem: ReceiptItem = {
-      barcode: trimmedBarcode,
-      timestamp: Date.now(),
-    };
-
-    setItems((prev) => [newItem, ...prev]);
-    setSuccess(`Strekkode registrert: ${trimmedBarcode}`);
-    setTimeout(() => setSuccess(""), 2000);
+    addItem(trimmedBarcode);
     setManualCode("");
   };
 
@@ -106,12 +186,14 @@ export default function GoodsReceiptPage() {
   };
 
   const clearAll = () => {
-    if (confirm("Er du sikker på at du vil slette alle varer?")) {
-      setIsConfirmModalOpen(false);
-      setItems([]);
-      setSuccess("Alle varer slettet");
-      setTimeout(() => setSuccess(""), 2000);
-    }
+    setIsClearConfirmOpen(true);
+  };
+
+  const executeClearAll = () => {
+    setIsClearConfirmOpen(false);
+    setItems([]);
+    setSuccess("Alle varer slettet");
+    setTimeout(() => setSuccess(""), 2000);
   };
 
   const toggleReceiptMode = () => {
@@ -145,22 +227,12 @@ export default function GoodsReceiptPage() {
   };
 
   const closeConfirmModal = () => {
-    if (isSubmitting) {
-      return;
-    }
-
+    if (isSubmitting) return;
     setIsConfirmModalOpen(false);
   };
 
   const submitReceipt = async () => {
-    if (!customerNumber) {
-      setError("Fant ikke kundenummer for innlogget bruker");
-      return;
-    }
-
-    if (isSubmitting) {
-      return;
-    }
+    if (!customerNumber || isSubmitting) return;
 
     setIsSubmitting(true);
 
@@ -168,32 +240,22 @@ export default function GoodsReceiptPage() {
       const response = await fetch("/api/receipts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items }),
+        body: JSON.stringify({ employeeId, customerNumber, items }),
       });
 
       const result = (await response.json().catch(() => null)) as CreateReceiptResponse | null;
 
       if (!response.ok || !result?.ok) {
         throw new Error(
-          result && "message" in result ? result.message : "Ugyldig svar fra server");
+          result && "message" in result ? result.message : "Ugyldig svar fra server"
+        );
       }
 
-      const receiptRecord: StoredReceipt = {
-        receiptId: result.receiptId || `temp-receipt-${Date.now()}`,
-        submittedAt: Date.now(),
-        itemCount: items.length,
-        customerNumber,
-        employeeId,
-        items,
-      };
-
-      addReceiptToHistory(receiptRecord);
       setHasReceiptHistory(true);
       setSuccess(`Varemottak registrert med ${items.length} kolli`);
       setIsConfirmModalOpen(false);
       setItems([]);
       setTimeout(() => setSuccess(""), 2000);
-
     } catch (err) {
       setError(err instanceof Error ? err.message : "Kunne ikke registrere mottak");
     } finally {
@@ -213,35 +275,81 @@ export default function GoodsReceiptPage() {
     router.push("/receipts");
   };
 
+  if (!isReady || !profile) {
+    return null;
+  }
+
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      {/* Header */}
-      <div className="max-w-6xl mx-auto">
+    <main className="flex min-h-screen flex-col bg-gradient-to-br from-tess-surface to-white">
+      <AppHeader />
+      <div className="max-w-6xl mx-auto p-4 w-full">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-800">Varemottak</h1>
-          <Link href="/dashboard" className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition">Tilbake</Link>
+          {receiptModeOpen ? (
+            <button
+              type="button"
+              onClick={toggleReceiptMode}
+              className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition"
+            >
+              Tilbake
+            </button>
+          ) : (
+            <Link href="/dashboard" className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition">Tilbake</Link>
+          )}
         </div>
 
-        <div className="mb-6 bg-white rounded-2xl shadow-sm ring-1 ring-gray-200 p-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">Registrere varemottak?</p>
-              <h2 className="mt-1 text-xl font-semibold text-gray-900">
-                {receiptModeOpen ? "Kamera og mottaksregistrering er åpnet" : "Kamera og mottaksregistrering er lukket"}
-              </h2>
+        {!receiptModeOpen ? (
+          <div className="mb-6 flex flex-col gap-6">
+            <div
+              onClick={toggleReceiptMode}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  toggleReceiptMode();
+                }
+              }}
+              role="button"
+              tabIndex={0}
+              className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-200 cursor-pointer p-6 transition hover:ring-tess-green-soft focus:outline-none focus:ring-2 focus:ring-tess-green-soft"
+            >
+              <div className="flex flex-col gap-4">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-wide text-tess-green-dark">
+                    {items.length > 0 ? "Fortsett varemottak" : "Start varemottak"}
+                  </p>
+                  <h2 className="mt-1 text-xl font-semibold text-gray-900">
+                    {items.length > 0
+                      ? "Trykk for å fortsette varemottak"
+                      : "Trykk for å starte skanning av kolli"}
+                  </h2>
+                  <p className="mt-1 text-sm text-gray-600">
+                    Skann eller registrer manuelt.
+                  </p>
+                </div>
+
+                {hasReceiptHistory ? (
+                  <div className="mt-4 flex flex-col items-start gap-3">
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void openReceiptHistory();
+                      }}
+                      className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 sm:w-auto"
+                    >
+                      Se tidligere registrerte varemottak
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </div>
 
-            <button
-              onClick={toggleReceiptMode}
-              className={`px-4 py-3 rounded-lg font-medium text-white transition ${receiptModeOpen
-                ? "bg-gray-700 hover:bg-gray-800"
-                : "bg-blue-600 hover:bg-blue-700"
-                }`}
-            >
-              {receiptModeOpen ? "Skjul kamera og mottaksregistrering" : "Åpne kamera for mottak av kolli"}
-            </button>
+            {customerNumber ? (
+              <div className="[&>section]:mb-0">
+                <OrdersOverview customerNumber={customerNumber} />
+              </div>
+            ) : null}
           </div>
-        </div>
+        ) : null}
 
         {receiptModeOpen ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
@@ -259,14 +367,6 @@ export default function GoodsReceiptPage() {
             </div>
 
             <div className="lg:col-span-1">
-              {hasReceiptHistory ? (
-                <button
-                  onClick={() => void openReceiptHistory()}
-                  className="mb-4 block w-full rounded-xl bg-blue-600 px-4 py-3 text-center font-semibold text-white shadow-lg transition hover:bg-blue-700"
-                >
-                  Siste varemottak
-                </button>
-              ) : null}
               <ItemsList
                 items={items}
                 removeItem={removeItem}
@@ -277,7 +377,7 @@ export default function GoodsReceiptPage() {
               {error ? (
                 <div className="mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">{error}</div>
               ) : success ? (
-                <div className="mt-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">{success}</div>
+                <div className="mt-4 bg-tess-green-light border border-tess-green-soft text-tess-green-dark px-4 py-3 rounded-lg">{success}</div>
               ) : null}
             </div>
           </div>
@@ -302,13 +402,11 @@ export default function GoodsReceiptPage() {
           </div>
         ) : null}
 
-        {customerNumber ? (
-          <OrdersOverview customerNumber={customerNumber} compact={receiptModeOpen} />
-        ) : (
+        {!receiptModeOpen && !customerNumber ? (
           <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-800">
             Fant ikke kundenummer for innlogget bruker. Logg inn på nytt for å hente riktig kundegrunnlag.
           </div>
-        )}
+        ) : null}
       </div>
 
       <ReceiptConfirmationModal
@@ -321,6 +419,31 @@ export default function GoodsReceiptPage() {
         onClose={closeConfirmModal}
         onConfirm={() => void submitReceipt()}
       />
+
+      {isClearConfirmOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">Slett alle varer?</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              {items.length} strekkode{items.length !== 1 ? "r" : ""} vil bli slettet. Denne handlingen kan ikke angres.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setIsClearConfirmOpen(false)}
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 transition hover:bg-gray-50"
+              >
+                Avbryt
+              </button>
+              <button
+                onClick={executeClearAll}
+                className="rounded-lg bg-red-600 px-4 py-2 font-semibold text-white transition hover:bg-red-700"
+              >
+                Slett alle
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

@@ -18,10 +18,10 @@ export default function ManualEntry({ manualCode, setManualCode, onSubmit, showM
           value={manualCode}
           onChange={(e) => setManualCode(e.target.value)}
           placeholder="Skriv inn strekkode"
-          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-tess-green focus:border-transparent outline-none"
           autoFocus
         />
-        <button type="submit" className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition">Legg til</button>
+        <button type="submit" className="px-4 py-2 bg-tess-green hover:bg-tess-green-dark text-white font-medium rounded-lg transition">Legg til</button>
       </div>
     </form>
   );

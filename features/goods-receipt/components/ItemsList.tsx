@@ -32,7 +32,7 @@ export default function ItemsList({ items, removeItem, clearAll, submitReceipt, 
       )}
 
       <div className="space-y-2 pt-4 border-t">
-        <button onClick={submitReceipt} disabled={items.length === 0 || isSubmitting} className="w-full px-4 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-semibold rounded-lg transition">
+        <button onClick={submitReceipt} disabled={items.length === 0 || isSubmitting} className="w-full px-4 py-3 bg-tess-green hover:bg-tess-green-dark disabled:bg-gray-400 text-white font-semibold rounded-lg transition">
           {isSubmitting ? "Registrerer..." : "Registrer mottak"}
         </button>
         <button onClick={clearAll} disabled={items.length === 0 || isSubmitting} className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-medium rounded-lg transition">Slett alt</button>

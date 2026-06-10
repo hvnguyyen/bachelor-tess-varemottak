@@ -183,7 +183,7 @@ export default function OrdersOverview({ customerNumber, compact = false }: Prop
     <section className={`mb-6 bg-white rounded-2xl shadow-sm ring-1 ring-gray-200 ${compact ? "p-4" : "p-6"}`}>
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">Aktuelle ordrelinjer for mottak</h2>
+          <h2 className="text-xl font-semibold text-gray-900">Ordregrunnlag</h2>
           <p className="text-sm text-gray-600">
             Kundenummer: <span className="font-medium">{customerNumber}</span>
             {hasRequestedLoad ? (
@@ -212,13 +212,13 @@ export default function OrdersOverview({ customerNumber, compact = false }: Prop
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_11rem_12rem]">
+      <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_9rem_auto_auto] md:items-center">
         <input
           type="text"
           value={draftOrderNumber}
           onChange={(event) => setDraftOrderNumber(event.target.value)}
           placeholder="Filtrer på ordrenummer"
-          className="rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          className="min-w-0 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-tess-green focus:ring-2 focus:ring-tess-green-light"
         />
         <input
           type="number"
@@ -226,22 +226,20 @@ export default function OrdersOverview({ customerNumber, compact = false }: Prop
           value={draftStatus}
           onChange={(event) => setDraftStatus(event.target.value)}
           placeholder="Status"
-          className="rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          className="min-w-0 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-tess-green focus:ring-2 focus:ring-tess-green-light"
         />
-        <div className="flex gap-3">
-          <button
-            onClick={applyFilters}
-            className="flex-1 rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
-          >
-            {hasRequestedLoad ? "Oppdater ordredata" : "Hent aktuelle ordredata"}
-          </button>
-          <button
-            onClick={resetFilters}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-          >
-            Nullstill
-          </button>
-        </div>
+        <button
+          onClick={applyFilters}
+          className="whitespace-nowrap rounded-lg bg-tess-green px-4 py-3 text-sm font-semibold text-white transition hover:bg-tess-green-dark"
+        >
+          {hasRequestedLoad ? "Oppdater ordregrunnlag" : "Hent ordregrunnlag"}
+        </button>
+        <button
+          onClick={resetFilters}
+          className="whitespace-nowrap rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+        >
+          Nullstill
+        </button>
       </div>
 
       {hasRequestedLoad ? (
@@ -251,7 +249,7 @@ export default function OrdersOverview({ customerNumber, compact = false }: Prop
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
             placeholder="Søk i lastet side etter selskap, lager eller referanse"
-            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-tess-green focus:ring-2 focus:ring-tess-green-light"
           />
         </div>
       ) : null}
@@ -259,7 +257,7 @@ export default function OrdersOverview({ customerNumber, compact = false }: Prop
       {!hasRequestedLoad ? (
         <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
 
-          Tabellen viser én rad per ordrenummer, og detaljene kan åpnes ved behov. Bruk filtrene over for å hente ordre.
+          Valgfritt oppslag for kontroll av ordrelinjer før eller under mottak.
 
         </div>
       ) : loading ? (
@@ -306,7 +304,7 @@ export default function OrdersOverview({ customerNumber, compact = false }: Prop
                       <td className="px-4 py-3 text-right">
                         <button
                           onClick={() => setExpandedOrderId(isOpen ? null : row.orderId)}
-                          className="font-medium text-blue-700 transition hover:text-blue-900"
+                          className="font-medium text-tess-green-dark transition hover:text-tess-green-darker"
                         >
                           {isOpen ? "Skjul" : "Vis"}
                         </button>
