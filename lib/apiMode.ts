@@ -4,8 +4,11 @@ import { randomUUID } from "crypto";
 export const MOCK_ACCESS_TOKEN = randomUUID();
 
 export function isMockApiMode() {
-    // Never allow mock mode in production, regardless of env vars.
-    if (process.env.NODE_ENV === "production") return false;
+    // Allow mock/demo mode in production only when explicitly opted in via ALLOW_DEMO_IN_PROD.
+    if (process.env.NODE_ENV === "production") {
+        return process.env.ALLOW_DEMO_IN_PROD?.toLowerCase() === "true"
+            && process.env.USE_MOCK_API?.toLowerCase() === "true";
+    }
     return process.env.USE_MOCK_API?.toLowerCase() === "true";
 }
 
